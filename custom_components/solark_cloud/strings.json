@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sol-Ark Cloud Configuration",
+        "description": "Enter your Sol-Ark Cloud credentials and configuration",
+        "data": {
+          "username": "Email Address",
+          "password": "Password",
+          "plant_id": "Plant ID",
+          "base_url": "Base URL",
+          "auth_mode": "Authentication Mode",
+          "scan_interval": "Update Interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid credentials",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "Already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sol-Ark Cloud Options",
+        "data": {
+          "base_url": "Base URL",
+          "auth_mode": "Authentication Mode",
+          "scan_interval": "Update Interval (seconds)"
+        }
+      }
+    }
+  }
+}
