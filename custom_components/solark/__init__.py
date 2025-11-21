@@ -14,6 +14,36 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import SolArkCloudAPI, SolArkCloudAPIError
+
+from pathlib import Path
+import os
+
+
+async def _ensure_dashboard_file(hass: HomeAssistant) -> None:
+    """Ensure SolArk dashboard YAML is present in /config/dashboards.
+
+    This will copy the bundled dashboards/solark_flow.yaml from the integration
+    package into the Home Assistant config dashboards directory on first setup.
+    It will NOT overwrite an existing file, so users can safely customize it.
+    """
+    try:
+        dashboards_path = Path(hass.config.path("dashboards"))
+        dashboards_path.mkdir(parents=True, exist_ok=True)
+        target = dashboards_path / "solark_flow.yaml"
+
+        # Do not clobber any user-customized dashboard.
+        if target.exists():
+            return
+
+        src = Path(__file__).parent / "dashboards" / "solark_flow.yaml"
+        if not src.exists():
+            return
+
+        target.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.debug("SolArk: Failed to ensure dashboard file: %s", err)
+
+
 from .const import (
     DOMAIN,
     CONF_USERNAME,
@@ -94,6 +124,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await _ensure_dashboard_file(hass)
     return True
 
 
@@ -102,4 +133,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        try:
+            dashboards_path = Path(hass.config.path("dashboards"))
+            target = dashboards_path / "solark_flow.yaml"
+            if target.exists():
+                target.unlink()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("SolArk: Failed to remove dashboard file: %s", err)
     return unload_ok
