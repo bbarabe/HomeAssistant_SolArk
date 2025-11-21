@@ -8,6 +8,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -32,24 +33,28 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
         name="PV Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SolArkSensorDescription(
         key="battery_power",
         name="Battery Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SolArkSensorDescription(
         key="grid_power",
         name="Grid Power (Net)",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SolArkSensorDescription(
         key="load_power",
         name="Load Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     # Grid import/export derived from meterA/B/C:
     SolArkSensorDescription(
@@ -57,31 +62,37 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
         name="Grid Import Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SolArkSensorDescription(
         key="grid_export_power",
         name="Grid Export Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     # Battery SOC:
     SolArkSensorDescription(
         key="battery_soc",
         name="Battery SOC",
         native_unit_of_measurement="%",
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
-    # Energy:
+    # Energy sensors (for Energy dashboard):
     SolArkSensorDescription(
         key="energy_today",
         name="Energy Today",
         native_unit_of_measurement="kWh",
         device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
     ),
     SolArkSensorDescription(
         key="energy_total",
         name="Energy Total",
         native_unit_of_measurement="kWh",
         device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
     ),
 ]
 
@@ -113,9 +124,10 @@ class SolArkSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_has_entity_name = True
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": "SolArk Plant",
+            "name": "SolArk",
             "manufacturer": "SolArk",
         }
 
