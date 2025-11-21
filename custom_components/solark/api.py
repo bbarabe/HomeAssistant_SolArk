@@ -411,7 +411,12 @@ class SolArkCloudAPI:
     def parse_plant_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Map API fields to sensor values, with computed real-time power.
 
-        Supports both classic SolArk keys and STROG/protocol-2 style payloads.
+        Tuned for SolArk 12K STROG/protocol-2 payloads:
+        - PV power from `pvPower` or voltN/currentN strings
+        - Battery power from `battPower` or `curVolt * chargeCurrent`
+        - Battery SOC from `battSoc` or `curCap/batteryCap`
+        - Grid net from meterA/B/C, then split into import/export
+        - Energy today / total from energyToday/etoday, energyTotal/etotal
         """
         if not isinstance(data, dict):
             _LOGGER.warning("parse_plant_data got non-dict: %r", data)
@@ -431,19 +436,25 @@ class SolArkCloudAPI:
                 data.get("energyTotal", data.get("etotal"))
             )
 
-        # Grid import/export and net
-        if "gridImportPower" in data:
-            sensors["grid_import_power"] = self._safe_float(data.get("gridImportPower"))
-        if "gridExportPower" in data:
-            sensors["grid_export_power"] = self._safe_float(data.get("gridExportPower"))
-
-        # Battery power and SOC (direct)
-        if "battPower" in data:
-            sensors["battery_power"] = self._safe_float(data.get("battPower"))
+        # ----- Battery SOC (direct) -----
         if "battSoc" in data:
             sensors["battery_soc"] = self._safe_float(data.get("battSoc"))
 
-        # PV power from MPPT strings: sum(voltN * currentN)
+        # ----- Battery SOC (derived from curCap / batteryCap) -----
+        if "battery_soc" not in sensors:
+            cur_cap_raw = data.get("curCap")
+            batt_cap_raw = data.get("batteryCap")
+            cur_cap = self._safe_float(cur_cap_raw)
+            batt_cap = self._safe_float(batt_cap_raw)
+            if batt_cap > 0:
+                sensors["battery_soc"] = (cur_cap / batt_cap) * 100.0
+
+        # ----- PV power -----
+        # Prefer direct field if SolArk exposes it
+        if "pvPower" in data:
+            sensors["pv_power"] = self._safe_float(data.get("pvPower"))
+
+        # Fallback: sum voltN * currentN (MPPT strings)
         pv_sum = 0.0
         for i in range(1, 13):
             v_raw = data.get(f"volt{i}")
@@ -454,20 +465,53 @@ class SolArkCloudAPI:
             c = self._safe_float(c_raw)
             string_power = v * c
             pv_sum += string_power
-        if "pvPower" in data:
-            sensors["pv_power"] = self._safe_float(data.get("pvPower"))
-        elif pv_sum != 0.0:
+        if "pv_power" not in sensors and pv_sum != 0.0:
             sensors["pv_power"] = pv_sum
 
-        # Battery SOC from curCap / batteryCap if not already provided
-        if "battery_soc" not in sensors:
-            cur_cap_raw = data.get("curCap")
-            batt_cap_raw = data.get("batteryCap")
-            if cur_cap_raw is not None and batt_cap_raw is not None:
-                cur_cap = self._safe_float(cur_cap_raw)
-                batt_cap = self._safe_float(batt_cap_raw)
-                if batt_cap != 0:
-                    sensors["battery_soc"] = (cur_cap / batt_cap) * 100.0
+        # ----- Battery power -----
+        # Prefer direct battPower if present
+        if "battPower" in data:
+            sensors["battery_power"] = self._safe_float(data.get("battPower"))
+
+        # Fallback: DC bus voltage * chargeCurrent
+        cur_volt_raw = data.get("curVolt")  # DC battery voltage
+        charge_current_raw = data.get("chargeCurrent")  # charging (+) / discharging (-)
+        cur_volt = self._safe_float(cur_volt_raw)
+        charge_current = self._safe_float(charge_current_raw)
+        if "battery_power" not in sensors and (cur_volt != 0.0 or charge_current != 0.0):
+            sensors["battery_power"] = cur_volt * charge_current
+
+        # ----- Grid net power from meterA/B/C -----
+        meter_a = self._safe_float(data.get("meterA"))
+        meter_b = self._safe_float(data.get("meterB"))
+        meter_c = self._safe_float(data.get("meterC"))
+        grid_net = meter_a + meter_b + meter_c
+
+        # Many SolArk 12K installs report signed power via these meters.
+        # We'll expose a signed net as helper (not as entity), and split to import/export.
+        if grid_net != 0.0:
+            # Positive assumed = import, negative = export.
+            if grid_net > 0:
+                sensors["grid_import_power"] = grid_net
+                sensors["grid_export_power"] = 0.0
+            else:
+                sensors["grid_import_power"] = 0.0
+                sensors["grid_export_power"] = abs(grid_net)
+        else:
+            # If there are explicit gridImportPower/gridExportPower fields, prefer those
+            if "gridImportPower" in data:
+                sensors["grid_import_power"] = self._safe_float(data.get("gridImportPower"))
+            if "gridExportPower" in data:
+                sensors["grid_export_power"] = self._safe_float(data.get("gridExportPower"))
+
+        # Ensure keys always exist if we computed nothing
+        sensors.setdefault("grid_import_power", 0.0)
+        sensors.setdefault("grid_export_power", 0.0)
+        sensors.setdefault("pv_power", 0.0)
+        sensors.setdefault("battery_power", 0.0)
+        sensors.setdefault("battery_soc", 0.0)
+        sensors.setdefault("energy_today", 0.0)
+        sensors.setdefault("energy_total", 0.0)
 
         _LOGGER.debug("Parsed sensors dict: %s", sensors)
         return sensors

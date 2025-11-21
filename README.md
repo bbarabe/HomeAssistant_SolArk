@@ -1,7 +1,9 @@
-# SolArk Cloud – Home Assistant Integration (v4.0.3, minimal sensor set)
+# SolArk Cloud – Home Assistant Integration (v4.0.4, minimal sensor set)
 
 Custom Home Assistant integration for SolArk Cloud using the OAuth2 API at
 https://ecsprod-api-new.solarkcloud.com behind https://www.mysolark.com.
+
+Tuned for **SolArk 12K** (protocol-2 / STROG) plants.
 
 ## Highlights
 
@@ -18,5 +20,13 @@ https://ecsprod-api-new.solarkcloud.com behind https://www.mysolark.com.
   - Energy Today
   - Energy Total
 
-Install via HACS as a custom repository, restart HA, then add the **SolArk Cloud**
-integration from Settings → Devices & Services.
+## Grid import/export semantics
+
+For SolArk 12K, this integration:
+- Sums `meterA + meterB + meterC` as a **signed net grid power**
+- Assumes **positive = import**, **negative = export**
+- Splits this into:
+  - `grid_import_power` (W)
+  - `grid_export_power` (W)
+
+If your sign convention is reversed, we can flip it in a follow-up revision.

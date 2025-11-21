@@ -46,7 +46,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     base_url = entry.data.get(CONF_BASE_URL, DEFAULT_BASE_URL)
     api_url = entry.data.get(CONF_API_URL, DEFAULT_API_URL)
 
-    # Prefer options scan_interval, fallback to stored & default
     scan_interval = int(
         entry.options.get(
             CONF_SCAN_INTERVAL,
