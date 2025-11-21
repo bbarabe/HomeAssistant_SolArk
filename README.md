@@ -33,3 +33,8 @@ This endpoint provides:
   - `sensor.solark_energy_total`
 
 Plant ID is fully variable and comes from the first-time config flow.
+
+
+## Example dashboard
+
+- See `dashboards/solark_dashboard.yaml` for a ready-made Lovelace view using Mushroom cards.
