@@ -94,6 +94,17 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
+    # Status sensors:
+    SolArkSensorDescription(
+        key="grid_status",
+        name="Grid Status",
+        device_class=None,
+    ),
+    SolArkSensorDescription(
+        key="generator_status",
+        name="Generator Status",
+        device_class=None,
+    ),
 ]
 
 
