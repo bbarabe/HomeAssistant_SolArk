@@ -433,14 +433,15 @@ class SolArkCloudAPI:
         # Start with inverter live data
         live_data = await self._get_inverter_live_data()
 
-        # Then overlay flow data (pvPower, battPower, gridOrMeterPower, loadOrEpsPower, soc)
+        # Then overlay flow data (pvPower, battPower, gridOrMeterPower, loadOrEpsPower, soc, ...)
         try:
             flow_data = await self._get_flow_data()
             if flow_data:
                 _LOGGER.debug("Merging flow_data keys into live_data: %s", list(flow_data.keys()))
                 for k, v in flow_data.items():
                     # Do not overwrite energyToday/Total if already present
-                    if k in ("pvPower", "battPower", "gridOrMeterPower", "loadOrEpsPower", "soc"):
+                    if k in ("pvPower", "battPower", "gridOrMeterPower", "loadOrEpsPower", "soc",
+                            "gridTo", "toGrid", "existsMeter"):
                         live_data[k] = v
         except Exception as e:  # noqa: BLE001
             _LOGGER.warning("Unable to merge flow data into live data: %s", e)
@@ -568,6 +569,25 @@ class SolArkCloudAPI:
                 sensors["grid_export_power"] = self._safe_float(
                     data.get("gridExportPower")
                 )
+            # If we still don't have import/export values, it may be because
+            # there is no external meter. In that case use directional flags
+            # `gridTo` / `toGrid` together with `gridOrMeterPower` to derive
+            # import/export values.
+            if "grid_import_power" not in sensors and "grid_export_power" not in sensors:
+                exists_meter = data.get("existsMeter", False)
+                # If no meter exists, try using directional fields
+                if not exists_meter:
+                    grid_power_val = self._safe_float(data.get("gridOrMeterPower"))
+                    grid_to = data.get("gridTo", False)
+                    to_grid = data.get("toGrid", False)
+
+                    if grid_to:
+                        sensors["grid_import_power"] = grid_power_val
+                        sensors["grid_export_power"] = 0.0
+                    elif to_grid:
+                        sensors["grid_import_power"] = 0.0
+                        sensors["grid_export_power"] = grid_power_val
+        
 
         # Ensure keys always exist
         sensors.setdefault("pv_power", 0.0)
