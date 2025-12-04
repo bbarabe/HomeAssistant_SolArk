@@ -122,7 +122,7 @@ async def async_setup_entry(
     entities: list[SolArkSensor] = [
         SolArkSensor(coordinator, entry, desc) for desc in SENSOR_DESCRIPTIONS
     ]
-    async_add_entities(entities)
+    async_add_entities(entities, update_before_add=True)
 
 
 class SolArkSensor(CoordinatorEntity, SensorEntity):
