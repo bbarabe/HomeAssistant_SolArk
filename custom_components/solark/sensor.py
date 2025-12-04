@@ -98,12 +98,14 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
     SolArkSensorDescription(
         key="grid_status",
         name="Grid Status",
-        device_class=None,
+        device_class=SensorDeviceClass.ENUM,
+        options=["Active", "Inactive", "Unknown"],
     ),
     SolArkSensorDescription(
         key="generator_status",
         name="Generator Status",
-        device_class=None,
+        device_class=SensorDeviceClass.ENUM,
+        options=["Running", "Off", "Unknown"],
     ),
 ]
 
