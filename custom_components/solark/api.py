@@ -441,7 +441,7 @@ class SolArkCloudAPI:
                 for k, v in flow_data.items():
                     # Do not overwrite energyToday/Total if already present
                     if k in ("pvPower", "battPower", "gridOrMeterPower", "loadOrEpsPower", "soc",
-                            "gridTo", "toGrid", "existsMeter", "gridSignal", "genOn"):
+                            "gridTo", "toGrid", "existsMeter", "genOn"):
                         live_data[k] = v
         except Exception as e:  # noqa: BLE001
             _LOGGER.warning("Unable to merge flow data into live data: %s", e)
@@ -590,10 +590,12 @@ class SolArkCloudAPI:
         
 
         # ----- Grid Status -----
-        # gridSignal: 1 = Grid Active, 0 = Grid Inactive
-        grid_signal = data.get("gridSignal")
-        if grid_signal is not None:
-            sensors["grid_status"] = "Active" if grid_signal == 1 else "Inactive"
+        grid_to = data.get("gridTo")
+        to_grid = data.get("toGrid")
+        if grid_to is False and to_grid is False:
+            sensors["grid_status"] = "Inactive"
+        elif grid_to or to_grid:
+            sensors["grid_status"] = "Active"
 
         # ----- Generator Status -----
         # genOn: True = Generator Running, False = Generator Off
