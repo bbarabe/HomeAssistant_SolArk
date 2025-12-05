@@ -4,33 +4,11 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 import logging
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
-
-LOG_FILE = Path(__file__).parent / "solark_debug.log"
-
-# Ensure we only add one file handler
-if not any(
-    isinstance(h, logging.FileHandler) and getattr(h, "_solark_file_handler", False)
-    for h in _LOGGER.handlers
-):
-    try:
-        file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-        file_handler._solark_file_handler = True  # type: ignore[attr-defined]
-        file_handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(
-            "%(asctime)s %(levelname)s %(name)s: %(message)s"
-        )
-        file_handler.setFormatter(formatter)
-        _LOGGER.addHandler(file_handler)
-        _LOGGER.setLevel(logging.DEBUG)
-        _LOGGER.debug("SolArk file logger initialized at %s", LOG_FILE)
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Failed to initialize SolArk file logger: %s", e)
 
 
 class SolArkCloudAPIError(Exception):
