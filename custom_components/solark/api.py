@@ -415,11 +415,24 @@ class SolArkCloudAPI:
         try:
             flow_data = await self._get_flow_data()
             if flow_data:
-                _LOGGER.debug("Merging flow_data keys into live_data: %s", list(flow_data.keys()))
+                _LOGGER.debug(
+                    "Merging flow_data keys into live_data: %s", list(flow_data.keys())
+                )
                 for k, v in flow_data.items():
                     # Do not overwrite energyToday/Total if already present
-                    if k in ("pvPower", "battPower", "gridOrMeterPower", "loadOrEpsPower", "soc",
-                            "gridTo", "toGrid", "existsMeter", "genOn"):
+                    if k in (
+                        "pvPower",
+                        "battPower",
+                        "gridOrMeterPower",
+                        "loadOrEpsPower",
+                        "soc",
+                        "gridTo",
+                        "toGrid",
+                        "toBat",
+                        "batTo",
+                        "existsMeter",
+                        "genOn",
+                    ):
                         live_data[k] = v
         except Exception as e:  # noqa: BLE001
             _LOGGER.warning("Unable to merge flow data into live data: %s", e)
@@ -508,7 +521,17 @@ class SolArkCloudAPI:
         # ----- Battery power -----
         # Prefer battPower from flow endpoint
         if "battPower" in data:
-            sensors["battery_power"] = self._safe_float(data.get("battPower"))
+            batt_power = abs(self._safe_float(data.get("battPower")))
+            to_bat = data.get("toBat")
+            bat_to = data.get("batTo")
+            # Direction comes from flow flags: toBat = charging (negative), batTo = discharging (positive)
+            if to_bat and not bat_to:
+                sensors["battery_power"] = -batt_power
+            elif bat_to and not to_bat:
+                sensors["battery_power"] = batt_power
+            else:
+                # If direction flags missing/ambiguous, fall back to unsigned value
+                sensors["battery_power"] = batt_power
 
         # Fallback: DC bus voltage * chargeCurrent
         if "battery_power" not in sensors:
