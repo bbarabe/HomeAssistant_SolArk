@@ -10,7 +10,8 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import SolArkCloudAPI, SolArkCloudAPIError
+from .solark_client import SolArkCloudAPI
+from .solark_errors import SolArkCloudAPIError
 from .const import (
     DOMAIN,
     CONF_USERNAME,

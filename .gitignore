@@ -109,3 +109,4 @@ Thumbs.db
 # Home Assistant specific
 *.log
 solark_debug.log
+solark_secrets.json

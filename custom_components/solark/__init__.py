@@ -3,17 +3,12 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
-
-from .api import SolArkCloudAPI, SolArkCloudAPIError
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     DOMAIN,
     CONF_USERNAME,
@@ -38,6 +33,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SolArk from a config entry."""
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+    from homeassistant.helpers.update_coordinator import (
+        DataUpdateCoordinator,
+        UpdateFailed,
+    )
+
+    from .solark_client import SolArkCloudAPI
+    from .solark_errors import SolArkCloudAPIError
     hass.data.setdefault(DOMAIN, {})
 
     username = entry.data[CONF_USERNAME]
