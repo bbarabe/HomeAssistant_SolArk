@@ -179,20 +179,7 @@ class SolArkCloudAPI:
             _LOGGER.warning("First inverter for plant %s has no SN", self.plant_id)
             return {}
 
-        _LOGGER.debug("Requesting live data for inverter SN=%s", sn)
-        live_resp = await self._request(
-            "GET",
-            f"/api/v1/dy/store/{sn}/read",
-            {"sn": sn},
-        )
-        _LOGGER.debug("Raw live response: %s", live_resp)
-
-        live_data = live_resp.get("data") or live_resp
-        if not isinstance(live_data, dict):
-            _LOGGER.debug("Live data for SN=%s is not a dict: %r", sn, live_data)
-            return {}
-
-        _LOGGER.debug("Live data keys for SN=%s: %s", sn, list(live_data.keys()))
+        live_data = await self.get_inverter_live_data_by_sn(sn)
 
         # Merge energy data from inverter summary into live_data
         try:
@@ -208,6 +195,168 @@ class SolArkCloudAPI:
             )
 
         return live_data
+
+    async def get_inverter_live_data_by_sn(self, sn: str) -> Dict[str, Any]:
+        """Fetch live inverter data via dy/store/{sn}/read for a specific inverter."""
+        await self._auth.ensure_token()
+        _LOGGER.debug("Requesting live data for inverter SN=%s", sn)
+        live_resp = await self._request(
+            "GET",
+            f"/api/v1/dy/store/{sn}/read",
+            {"sn": sn},
+        )
+        _LOGGER.debug("Raw live response: %s", live_resp)
+
+        live_data = live_resp.get("data") or live_resp
+        if not isinstance(live_data, dict):
+            _LOGGER.debug("Live data for SN=%s is not a dict: %r", sn, live_data)
+            return {}
+
+        _LOGGER.debug("Live data keys for SN=%s: %s", sn, list(live_data.keys()))
+        return live_data
+
+    async def get_inverters(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        total: int = 0,
+        layout: str = "sizes,prev,+pager,+next,+jumper",
+        status: int = -1,
+        sn: str = "",
+        plant_id: Optional[str] = None,
+        inv_type: int = -2,
+        soft_ver: str = "",
+        hmi_ver: str = "",
+        agent_company_id: int = -1,
+        gsn: str = "",
+    ) -> Dict[str, Any]:
+        """Fetch inverter list using the /api/v1/inverters endpoint."""
+        await self._auth.ensure_token()
+        params = {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "layout": layout,
+            "status": status,
+            "sn": sn,
+            "plantId": plant_id if plant_id is not None else "",
+            "type": inv_type,
+            "softVer": soft_ver,
+            "hmiVer": hmi_ver,
+            "agentCompanyId": agent_company_id,
+            "gsn": gsn,
+        }
+        return await self._request("GET", "/api/v1/inverters", params)
+
+    async def get_plants(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        name: str = "",
+        status: str = "",
+        plant_type: int = -1,
+        sort_col: str = "createAt",
+        order: int = 2,
+    ) -> Dict[str, Any]:
+        """Fetch plants list via /api/v1/plants."""
+        await self._auth.ensure_token()
+        params = {
+            "page": page,
+            "limit": limit,
+            "name": name,
+            "status": status,
+            "type": plant_type,
+            "sortCol": sort_col,
+            "order": order,
+        }
+        return await self._request("GET", "/api/v1/plants", params)
+
+    async def get_gateways(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        status: int = -1,
+        sn: str = "",
+        plant_id: Optional[str] = None,
+        soft_ver: str = "",
+        hard_ver: str = "",
+        inv_sn: str = "",
+        protocol: int = -1,
+        agent_company_id: int = -1,
+        lan: str = "en",
+    ) -> Dict[str, Any]:
+        """Fetch gateways list via /api/v1/gateways."""
+        await self._auth.ensure_token()
+        params = {
+            "page": page,
+            "limit": limit,
+            "status": status,
+            "sn": sn,
+            "plantId": plant_id if plant_id is not None else "",
+            "softVer": soft_ver,
+            "hardVer": hard_ver,
+            "invSn": inv_sn,
+            "protocol": protocol,
+            "agentCompanyId": agent_company_id,
+            "lan": lan,
+        }
+        return await self._request("GET", "/api/v1/gateways", params)
+
+    async def get_common_settings(self, sn: str) -> Dict[str, Any]:
+        """Fetch common inverter settings via /api/v1/common/setting/{sn}/read."""
+        await self._auth.ensure_token()
+        return await self._request("GET", f"/api/v1/common/setting/{sn}/read")
+
+    async def set_system_work_mode_slot(
+        self,
+        sn: str,
+        slot: int,
+        sell_time: Optional[str] = None,
+        sell_pac: Optional[float] = None,
+        sell_volt: Optional[float] = None,
+        cap: Optional[float] = None,
+        enabled: Optional[bool] = None,
+        sys_work_mode: Optional[int] = None,
+        require_master: bool = True,
+    ) -> Dict[str, Any]:
+        """Update a system work mode time slot for an inverter."""
+        if slot not in (1, 2, 3, 4, 5, 6):
+            raise ValueError("slot must be between 1 and 6")
+
+        settings_resp = await self.get_common_settings(sn)
+        settings_data = (
+            settings_resp.get("data")
+            if isinstance(settings_resp, dict)
+            else settings_resp
+        )
+        if not isinstance(settings_data, dict):
+            raise SolArkCloudAPIError("Invalid settings response")
+
+        if require_master:
+            equip_mode = settings_data.get("equipMode")
+            if equip_mode != 1:
+                raise SolArkCloudAPIError(
+                    f"Inverter {sn} is not master (equipMode={equip_mode})"
+                )
+
+        payload = self._build_common_setting_payload(sn, settings_data)
+
+        if sys_work_mode is not None:
+            payload["sysWorkMode"] = sys_work_mode
+        if sell_time is not None:
+            payload[f"sellTime{slot}"] = sell_time
+        if sell_pac is not None:
+            payload[f"sellTime{slot}Pac"] = sell_pac
+        if sell_volt is not None:
+            payload[f"sellTime{slot}Volt"] = sell_volt
+        if cap is not None:
+            payload[f"cap{slot}"] = cap
+        if enabled is not None:
+            payload[f"time{slot}on"] = enabled
+
+        return await self._request(
+            "POST", f"/api/v1/common/setting/{sn}/set", payload
+        )
 
     async def get_flow_data(self) -> Dict[str, Any]:
         """Fetch plant power flow data (pv, batt, grid, load, soc)."""
@@ -391,3 +540,67 @@ class SolArkCloudAPI:
 
         _LOGGER.debug("Parsed sensors dict: %s", sensors)
         return sensors
+
+    def _build_common_setting_payload(
+        self, sn: str, live_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        keys = [
+            "safetyType",
+            "battMode",
+            "solarSell",
+            "pvMaxLimit",
+            "energyMode",
+            "peakAndVallery",
+            "sysWorkMode",
+            "sellTime1",
+            "sellTime2",
+            "sellTime3",
+            "sellTime4",
+            "sellTime5",
+            "sellTime6",
+            "sellTime1Pac",
+            "sellTime2Pac",
+            "sellTime3Pac",
+            "sellTime4Pac",
+            "sellTime5Pac",
+            "sellTime6Pac",
+            "cap1",
+            "cap2",
+            "cap3",
+            "cap4",
+            "cap5",
+            "cap6",
+            "sellTime1Volt",
+            "sellTime2Volt",
+            "sellTime3Volt",
+            "sellTime4Volt",
+            "sellTime5Volt",
+            "sellTime6Volt",
+            "zeroExportPower",
+            "solarMaxSellPower",
+            "mondayOn",
+            "tuesdayOn",
+            "wednesdayOn",
+            "thursdayOn",
+            "fridayOn",
+            "saturdayOn",
+            "sundayOn",
+            "time1on",
+            "time2on",
+            "time3on",
+            "time4on",
+            "time5on",
+            "time6on",
+            "genTime1on",
+            "genTime2on",
+            "genTime3on",
+            "genTime4on",
+            "genTime5on",
+            "genTime6on",
+        ]
+        payload: Dict[str, Any] = {"sn": sn}
+        for key in keys:
+            value = live_data.get(key)
+            if value is not None:
+                payload[key] = value
+        return payload

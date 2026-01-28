@@ -101,6 +101,7 @@ venv.bak/
 *.swp
 *.swo
 *~
+.devcontainer/
 
 # OS
 .DS_Store
