@@ -11,7 +11,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 - **Energy Dashboard Compatible** - Native support for Home Assistant's Energy dashboard
 - **Real-time Monitoring** - Live power flow tracking (PV, Battery, Grid, Load)
 - **Cloud-based** - No physical connections required
-- **9 Comprehensive Sensors** - All critical solar system metrics
+- **13 Comprehensive Sensors** - All critical solar system metrics
 - **Beautiful Dashboards** - Pre-built power flow visualizations
 - **Long-term Statistics** - Automatic energy tracking and historical data
 - **Easy Setup** - Simple configuration through Home Assistant UI
@@ -20,13 +20,17 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 
 | Entity ID | Description | Unit | Energy Dashboard |
 |-----------|-------------|------|------------------|
-| `sensor.solark_pv_power` | Solar panel power | W | Use with Riemann Sum |
-| `sensor.solark_battery_power` | Battery charge/discharge | W | Use with Riemann Sum |
+| `sensor.solark_pv_power` | Solar panel power | W | Power only |
+| `sensor.solark_battery_power` | Battery charge/discharge | W | Power only |
 | `sensor.solark_battery_soc` | Battery state of charge | % | Battery level |
-| `sensor.solark_grid_power` | Net grid power | W | Use with Riemann Sum |
-| `sensor.solark_load_power` | Home consumption | W | Use with Riemann Sum |
-| `sensor.solark_grid_import_power` | Grid import | W | Use with Riemann Sum |
-| `sensor.solark_grid_export_power` | Grid export | W | Use with Riemann Sum |
+| `sensor.solark_grid_power` | Net grid power | W | Power only |
+| `sensor.solark_load_power` | Home consumption | W | Power only |
+| `sensor.solark_grid_import_power` | Grid import | W | Power only |
+| `sensor.solark_grid_export_power` | Grid export | W | Power only |
+| `sensor.solark_grid_import_energy` | Grid import energy | kWh | ✅ Direct use |
+| `sensor.solark_grid_export_energy` | Grid export energy | kWh | ✅ Direct use |
+| `sensor.solark_grid_status` | Grid status | - | Status |
+| `sensor.solark_generator_status` | Generator status | - | Status |
 | `sensor.solark_energy_today` | Daily production | kWh | ✅ Direct use |
 | `sensor.solark_energy_total` | Lifetime production | kWh | ✅ Solar production |
 
@@ -80,7 +84,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 
 - Go to **Developer Tools** → **States**
 - Search `solark`
-- Verify 9 sensors with live data
+- Verify 13 sensors with live data
 
 ## 🧪 CLI Testing (Optional)
 
@@ -96,18 +100,18 @@ python -m solark_cli --secrets solark_secrets.json --combined --parsed
 ## ⚡ Energy Dashboard Setup
 
 Your integration is fully compatible with Home Assistant's Energy dashboard!
+Grid import/export energy sensors are provided directly by the integration, so
+no helper setup is required.
 
 ### Quick Setup
 
 1. **Settings** → **Dashboards** → **Energy**
 2. **Solar Production** → Add Production
    - Select: `sensor.solark_energy_total`
-3. **Grid Consumption** (requires helpers):
-   - Create Riemann Sum helper from `sensor.solark_grid_import_power`
-   - Add to Energy dashboard
+3. **Grid Consumption**:
+   - Select `sensor.solark_grid_import_energy`
 4. **Grid Return** (if you export):
-   - Create Riemann Sum helper from `sensor.solark_grid_export_power`
-   - Add to Energy dashboard
+   - Select `sensor.solark_grid_export_energy`
 
 **📚 Full Guide:** See [ENERGY_DASHBOARD_SETUP.md](ENERGY_DASHBOARD_SETUP.md) for complete instructions including battery tracking.
 
@@ -246,7 +250,7 @@ template:
 - Check SolArk Cloud service status
 - Increase scan interval to 60 seconds
 - Reload integration
-- Check debug log: `/config/custom_components/solark/solark_debug.log`
+- Check Home Assistant logs for `custom_components.solark`
 
 ### Dashboard Shows Blank
 1. Verify sensors exist: **Developer Tools** → **States**
@@ -317,4 +321,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Note:** Not officially affiliated with Sol-Ark. Community-developed integration.
 
-**Version:** 5.0.0 | **Supports:** Sol-Ark 5K/8K/12K/15K | **HA:** 2023.5.0+
+**Version:** 5.1.0 | **Supports:** Sol-Ark 5K/8K/12K/15K | **HA:** 2023.5.0+

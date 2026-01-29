@@ -424,7 +424,10 @@ class SolArkCloudAPI:
                         "soc",
                         "gridTo",
                         "toGrid",
+                        "toBat",
+                        "batTo",
                         "existsMeter",
+                        "genOn",
                     ):
                         live_data[key] = value
         except Exception as exc:  # noqa: BLE001
@@ -502,7 +505,15 @@ class SolArkCloudAPI:
 
         # ----- Battery power -----
         if "battPower" in data:
-            sensors["battery_power"] = self._safe_float(data.get("battPower"))
+            batt_power = abs(self._safe_float(data.get("battPower")))
+            to_bat = data.get("toBat")
+            bat_to = data.get("batTo")
+            if to_bat and not bat_to:
+                sensors["battery_power"] = -batt_power
+            elif bat_to and not to_bat:
+                sensors["battery_power"] = batt_power
+            else:
+                sensors["battery_power"] = batt_power
 
         if "battery_power" not in sensors:
             cur_volt = self._safe_float(data.get("curVolt"))
@@ -567,6 +578,19 @@ class SolArkCloudAPI:
                                 sensors["grid_import_power"] = 0.0
                                 sensors["grid_export_power"] = abs(grid_flow)
 
+        # ----- Grid Status -----
+        grid_to = data.get("gridTo")
+        to_grid = data.get("toGrid")
+        if grid_to is False and to_grid is False:
+            sensors["grid_status"] = "Inactive"
+        elif grid_to or to_grid:
+            sensors["grid_status"] = "Active"
+
+        # ----- Generator Status -----
+        gen_on = data.get("genOn")
+        if gen_on is not None:
+            sensors["generator_status"] = "Running" if gen_on else "Off"
+
         sensors.setdefault("pv_power", 0.0)
         sensors.setdefault("battery_power", 0.0)
         sensors.setdefault("grid_power", 0.0)
@@ -576,6 +600,8 @@ class SolArkCloudAPI:
         sensors.setdefault("battery_soc", 0.0)
         sensors.setdefault("energy_today", 0.0)
         sensors.setdefault("energy_total", 0.0)
+        sensors.setdefault("grid_status", "Unknown")
+        sensors.setdefault("generator_status", "Unknown")
 
         _LOGGER.debug("Parsed sensors dict: %s", sensors)
         return sensors

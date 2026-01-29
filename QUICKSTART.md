@@ -2,7 +2,7 @@
 
 ## What You'll Get
 
-After installation, you'll have 9 sensors monitoring your Sol-Ark system:
+After installation, you'll have 13 sensors monitoring your Sol-Ark system:
 
 - `sensor.solark_pv_power` - Solar power generation
 - `sensor.solark_battery_power` - Battery charge/discharge
@@ -11,6 +11,10 @@ After installation, you'll have 9 sensors monitoring your Sol-Ark system:
 - `sensor.solark_load_power` - Home consumption
 - `sensor.solark_grid_import_power` - Power from grid
 - `sensor.solark_grid_export_power` - Power to grid
+- `sensor.solark_grid_import_energy` - Grid import energy
+- `sensor.solark_grid_export_energy` - Grid export energy
+- `sensor.solark_grid_status` - Grid status
+- `sensor.solark_generator_status` - Generator status
 - `sensor.solark_energy_today` - Today's production
 - `sensor.solark_energy_total` - Lifetime production
 
@@ -50,7 +54,7 @@ After installation, you'll have 9 sensors monitoring your Sol-Ark system:
 
 1. Go to **Developer Tools** → **States**
 2. Search for: `solark`
-3. You should see 9 sensors with live data
+3. You should see 13 sensors with live data
 4. If they show "unavailable", wait 30 seconds for first update
 
 ### Optional: CLI Quick Test
@@ -122,7 +126,7 @@ If this works, the issue is with the custom cards, not the integration.
 ## Getting Help
 
 - **GitHub Issues:** Report bugs at [GitHub Issues](https://github.com/HammondAutomationHub/HomeAssistant_SolArk/issues)
-- **Logs:** Check `/config/custom_components/solark/solark_debug.log` for details
+- **Logs:** Check Home Assistant logs for `custom_components.solark` details
 - **Community:** Ask at [Home Assistant Forums](https://community.home-assistant.io/)
 
 ## Next Steps

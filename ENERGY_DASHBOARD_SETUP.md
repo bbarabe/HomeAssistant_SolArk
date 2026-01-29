@@ -39,80 +39,19 @@ The Energy dashboard can track:
 - Home Assistant calculates daily/monthly production from this
 - This tracks your total lifetime solar production
 
-### Step 3: Configure Grid Consumption
+### Step 3: Configure Grid Consumption and Return
 
-**Option A: Using Individual Import/Export (Recommended if you export to grid)**
-
-1. Find **Grid consumption** section
-2. Click **ADD CONSUMPTION**
-3. Under **Energy consumed from the grid**, this requires an energy sensor (kWh), not power
-4. **Problem:** Your integration currently only provides power sensors (W)
-5. **Solution:** Create Riemann Sum helpers (see below)
-
-**Option B: Using Net Grid Power (Simple, but less accurate)**
-
-If you don't export to grid, you can use the net grid sensor with a Riemann Sum helper.
-
-### Step 4: Create Energy Helpers (Required)
-
-Since your integration provides power (W) but Energy dashboard needs energy (kWh), create Riemann Sum integration helpers:
-
-#### 4a. Grid Import Energy Helper
-
-1. Go to **Settings** → **Devices & Services** → **Helpers**
-2. Click **+ CREATE HELPER**
-3. Select **Riemann sum integral**
-4. Configure:
-   - **Input sensor**: `sensor.solark_grid_import_power`
-   - **Name**: `Grid Import Energy`
-   - **Integration method**: `Trapezoidal rule`
-   - **Metric prefix**: `k` (kilo)
-   - **Time unit**: `Hours`
-   - **Round to decimals**: `3`
-5. Click **CREATE**
-
-This creates: `sensor.grid_import_energy` (in kWh)
-
-#### 4b. Grid Export Energy Helper
-
-1. Create another Riemann sum helper
-2. Configure:
-   - **Input sensor**: `sensor.solark_grid_export_power`
-   - **Name**: `Grid Export Energy`
-   - **Integration method**: `Trapezoidal rule`
-   - **Metric prefix**: `k` (kilo)
-   - **Time unit**: `Hours`
-   - **Round to decimals**: `3`
-3. Click **CREATE**
-
-This creates: `sensor.grid_export_energy` (in kWh)
-
-#### 4c. Home Consumption Energy Helper (Optional but Recommended)
-
-1. Create another Riemann sum helper
-2. Configure:
-   - **Input sensor**: `sensor.solark_load_power`
-   - **Name**: `Home Consumption Energy`
-   - **Integration method**: `Trapezoidal rule`
-   - **Metric prefix**: `k` (kilo)
-   - **Time unit**: `Hours`
-   - **Round to decimals**: `3`
-3. Click **CREATE**
-
-This creates: `sensor.home_consumption_energy` (in kWh)
-
-### Step 5: Configure Grid in Energy Dashboard
-
-Now go back to **Energy Configuration**:
+The integration provides native energy sensors for grid import/export using a
+trapezoidal (Riemann) integration of the power sensors.
 
 1. Under **Grid consumption**, click **ADD CONSUMPTION**
-2. **Energy consumed from the grid**: Select `sensor.grid_import_energy`
-3. Under **Grid production** (if you have net metering):
+2. Select **Energy consumed from the grid**: `sensor.solark_grid_import_energy`
+3. Under **Grid production** (if you export):
    - Click **ADD RETURN**
-   - Select `sensor.grid_export_energy`
+   - Select `sensor.solark_grid_export_energy`
 4. Click **SAVE**
 
-### Step 6: Configure Home Battery (Optional)
+### Step 4: Configure Home Battery (Optional)
 
 If you want to track battery energy flow:
 
@@ -125,7 +64,7 @@ If you want to track battery energy flow:
 
 **Note:** Battery energy tracking is more complex because you need to separate charge vs discharge. This requires template sensors to split the battery_power into positive (discharge) and negative (charge) components first.
 
-### Step 7: Verify Configuration
+### Step 5: Verify Configuration
 
 1. Wait 1-2 hours for data to accumulate
 2. Go to **Energy** dashboard
@@ -183,7 +122,7 @@ Finally, add to Energy dashboard:
 
 **Solution:** 
 - Use `sensor.solark_energy_total` for solar (it has the correct state_class)
-- Use Riemann Sum helpers for power→energy conversion
+- Use `sensor.solark_grid_import_energy` and `sensor.solark_grid_export_energy` for grid
 
 ### "Statistics not available"
 
@@ -203,7 +142,7 @@ Finally, add to Energy dashboard:
 ### Energy Values Seem Wrong
 
 **Causes:**
-- Riemann Sum helpers created recently (they start from zero)
+- Battery Riemann Sum helpers created recently (they start from zero)
 - Integration was offline/unavailable during periods
 - Power sensor reporting incorrect values
 
@@ -292,17 +231,10 @@ template:
           {{ max(0, -power) }}
 ```
 
-Then create these Riemann Sum helpers via UI:
-1. Grid Import Energy (from solark_grid_import_power)
-2. Grid Export Energy (from solark_grid_export_power)
-3. Battery Discharge Energy (from battery_discharge_power template)
-4. Battery Charge Energy (from battery_charge_power template)
-5. Home Consumption Energy (from solark_load_power)
-
 Finally configure Energy dashboard:
 - **Solar**: sensor.solark_energy_total
-- **Grid Import**: sensor.grid_import_energy
-- **Grid Export**: sensor.grid_export_energy
+- **Grid Import**: sensor.solark_grid_import_energy
+- **Grid Export**: sensor.solark_grid_export_energy
 - **Battery In**: sensor.battery_charge_energy
 - **Battery Out**: sensor.battery_discharge_energy
 
@@ -312,7 +244,7 @@ Your SolArk Cloud integration is now fully Energy dashboard compatible! The key 
 
 1. ✅ Energy sensors have `state_class: TOTAL_INCREASING` (done in v5.0.0+)
 2. ✅ Power sensors have `state_class: MEASUREMENT` (done in v5.0.0+)
-3. ✅ Create Riemann Sum helpers to convert power (W) to energy (kWh)
+3. ✅ Grid import/export energy sensors are provided by the integration
 4. ✅ Configure Energy dashboard with your sensors
 
 After setup, you'll have comprehensive energy tracking showing exactly where your energy comes from and goes to! 🌞🔋⚡

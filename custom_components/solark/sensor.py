@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -17,6 +18,8 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
+from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 
@@ -24,6 +27,12 @@ from .const import DOMAIN
 @dataclass
 class SolArkSensorDescription(SensorEntityDescription):
     key: str
+
+
+@dataclass
+class SolArkIntegratedEnergyDescription(SensorEntityDescription):
+    key: str
+    source_key: str
 
 
 SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
@@ -94,6 +103,38 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
+    # Status sensors:
+    SolArkSensorDescription(
+        key="grid_status",
+        name="Grid Status",
+        device_class=SensorDeviceClass.ENUM,
+        options=["Active", "Inactive", "Unknown"],
+    ),
+    SolArkSensorDescription(
+        key="generator_status",
+        name="Generator Status",
+        device_class=SensorDeviceClass.ENUM,
+        options=["Running", "Off", "Unknown"],
+    ),
+]
+
+INTEGRATED_ENERGY_DESCRIPTIONS: list[SolArkIntegratedEnergyDescription] = [
+    SolArkIntegratedEnergyDescription(
+        key="grid_import_energy",
+        source_key="grid_import_power",
+        name="Grid Import Energy",
+        native_unit_of_measurement="kWh",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SolArkIntegratedEnergyDescription(
+        key="grid_export_energy",
+        source_key="grid_export_power",
+        name="Grid Export Energy",
+        native_unit_of_measurement="kWh",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
 ]
 
 
@@ -106,10 +147,14 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: DataUpdateCoordinator = data["coordinator"]
 
-    entities: list[SolArkSensor] = [
+    entities: list[SensorEntity] = [
         SolArkSensor(coordinator, entry, desc) for desc in SENSOR_DESCRIPTIONS
     ]
-    async_add_entities(entities)
+    entities.extend(
+        SolArkIntegratedEnergySensor(coordinator, entry, desc)
+        for desc in INTEGRATED_ENERGY_DESCRIPTIONS
+    )
+    async_add_entities(entities, update_before_add=True)
 
 
 class SolArkSensor(CoordinatorEntity, SensorEntity):
@@ -135,3 +180,76 @@ class SolArkSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> Any:
         data = self.coordinator.data or {}
         return data.get(self.entity_description.key)
+
+
+class SolArkIntegratedEnergySensor(CoordinatorEntity, SensorEntity, RestoreEntity):
+    """Integrate a power sensor into a total energy sensor (kWh)."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        entry: ConfigEntry,
+        description: SolArkIntegratedEnergyDescription,
+    ) -> None:
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_has_entity_name = True
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "SolArk",
+            "manufacturer": "SolArk",
+        }
+        self._energy_kwh: float | None = None
+        self._last_power: float | None = None
+        self._last_update: datetime | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Restore last known energy value."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in (None, "unknown", "unavailable"):
+            try:
+                self._energy_kwh = float(last_state.state)
+            except (TypeError, ValueError):
+                self._energy_kwh = 0.0
+        else:
+            self._energy_kwh = 0.0
+
+    @property
+    def native_value(self) -> Any:
+        return self._energy_kwh
+
+    def _handle_coordinator_update(self) -> None:
+        data = self.coordinator.data or {}
+        power = data.get(self.entity_description.source_key)
+        try:
+            power_w = float(power) if power is not None else 0.0
+        except (TypeError, ValueError):
+            power_w = 0.0
+        if power_w < 0.0:
+            power_w = 0.0
+
+        now = dt_util.utcnow()
+        if self._last_update is None:
+            self._last_update = now
+            self._last_power = power_w
+            super()._handle_coordinator_update()
+            return
+
+        delta_s = (now - self._last_update).total_seconds()
+        if delta_s > 0:
+            last_power = self._last_power if self._last_power is not None else power_w
+            avg_power = (last_power + power_w) / 2.0
+            if avg_power < 0.0:
+                avg_power = 0.0
+            increment_kwh = (avg_power * delta_s) / 3600.0 / 1000.0
+            if increment_kwh < 0.0:
+                increment_kwh = 0.0
+            if self._energy_kwh is None:
+                self._energy_kwh = 0.0
+            self._energy_kwh += increment_kwh
+
+        self._last_update = now
+        self._last_power = power_w
+        super()._handle_coordinator_update()
