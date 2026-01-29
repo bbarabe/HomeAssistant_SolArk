@@ -53,6 +53,17 @@ After installation, you'll have 9 sensors monitoring your Sol-Ark system:
 3. You should see 9 sensors with live data
 4. If they show "unavailable", wait 30 seconds for first update
 
+### Optional: CLI Quick Test
+
+If you want to test the API from the command line:
+
+1. Copy the template: `solark_secrets.template.json` → `solark_secrets.json`
+2. Fill in your credentials and Plant ID
+3. Run:
+```bash
+python -m solark_cli --secrets solark_secrets.json --combined --parsed
+```
+
 ### Step 5: Add Dashboard (Optional)
 
 **Easy Way:**
