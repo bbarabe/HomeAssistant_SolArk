@@ -82,6 +82,17 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 - Search `solark`
 - Verify 9 sensors with live data
 
+## 🧪 CLI Testing (Optional)
+
+If you want to test the SolArk Cloud API from your machine:
+
+1. Copy `solark_secrets.template.json` to `solark_secrets.json`
+2. Fill in your Sol-Ark username/password and Plant ID
+3. Run:
+```bash
+python -m solark_cli --secrets solark_secrets.json --combined --parsed
+```
+
 ## ⚡ Energy Dashboard Setup
 
 Your integration is fully compatible with Home Assistant's Energy dashboard!

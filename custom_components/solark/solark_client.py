@@ -316,6 +316,8 @@ class SolArkCloudAPI:
         sell_volt: Optional[float] = None,
         cap: Optional[float] = None,
         enabled: Optional[bool] = None,
+        slot_mode: Optional[int] = None,
+        gen_enabled: Optional[bool] = None,
         sys_work_mode: Optional[int] = None,
         require_master: bool = True,
     ) -> Dict[str, Any]:
@@ -353,6 +355,14 @@ class SolArkCloudAPI:
             payload[f"cap{slot}"] = cap
         if enabled is not None:
             payload[f"time{slot}on"] = enabled
+        if gen_enabled is not None:
+            payload[f"genTime{slot}on"] = gen_enabled
+        if slot_mode is not None:
+            # Map mode to sell/charge toggles (matches UI payload behavior).
+            enabled = slot_mode in (1, 3)
+            gen_enabled = slot_mode in (2, 3)
+            payload[f"time{slot}on"] = enabled
+            payload[f"genTime{slot}on"] = gen_enabled
 
         return await self._request(
             "POST", f"/api/v1/common/setting/{sn}/set", payload
@@ -412,6 +422,9 @@ class SolArkCloudAPI:
                         "gridOrMeterPower",
                         "loadOrEpsPower",
                         "soc",
+                        "gridTo",
+                        "toGrid",
+                        "existsMeter",
                     ):
                         live_data[key] = value
         except Exception as exc:  # noqa: BLE001
@@ -527,6 +540,32 @@ class SolArkCloudAPI:
                 sensors["grid_export_power"] = self._safe_float(
                     data.get("gridExportPower")
                 )
+
+            # No CT meters: use gridOrMeterPower + direction flags from flow data.
+            if (
+                sensors.get("grid_import_power", 0.0) == 0.0
+                and sensors.get("grid_export_power", 0.0) == 0.0
+            ):
+                exists_meter = data.get("existsMeter")
+                no_meter = exists_meter in (False, 0, "0", None)
+                if no_meter:
+                    grid_flow = self._safe_float(data.get("gridOrMeterPower"))
+                    if grid_flow != 0.0:
+                        grid_to = data.get("gridTo")
+                        to_grid = data.get("toGrid")
+                        if grid_to is True and to_grid is not True:
+                            sensors["grid_import_power"] = abs(grid_flow)
+                            sensors["grid_export_power"] = 0.0
+                        elif to_grid is True and grid_to is not True:
+                            sensors["grid_import_power"] = 0.0
+                            sensors["grid_export_power"] = abs(grid_flow)
+                        else:
+                            if grid_flow > 0.0:
+                                sensors["grid_import_power"] = abs(grid_flow)
+                                sensors["grid_export_power"] = 0.0
+                            elif grid_flow < 0.0:
+                                sensors["grid_import_power"] = 0.0
+                                sensors["grid_export_power"] = abs(grid_flow)
 
         sensors.setdefault("pv_power", 0.0)
         sensors.setdefault("battery_power", 0.0)

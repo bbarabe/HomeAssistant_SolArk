@@ -102,9 +102,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Battery cap for the slot",
     )
     parser.add_argument(
-        "--slot-enabled",
-        choices=["true", "false"],
-        help="Enable or disable the slot",
+        "--slot-mode",
+        choices=["sell", "charge"],
+        help="Slot mode (sell or charge)",
     )
     parser.add_argument(
         "--sys-work-mode",
@@ -134,10 +134,11 @@ def _load_secrets(path: str) -> dict:
         return {}
 
 
-def _parse_optional_bool(value: str | None) -> bool | None:
+def _parse_slot_mode(value: str | None) -> int | None:
     if value is None:
         return None
-    return value.lower() == "true"
+    mapping = {"sell": 1, "charge": 2}
+    return mapping[value]
 
 
 async def _run(args: argparse.Namespace) -> int:
@@ -238,7 +239,7 @@ async def _run(args: argparse.Namespace) -> int:
                     sell_pac=args.slot_pac,
                     sell_volt=args.slot_volt,
                     cap=args.slot_cap,
-                    enabled=_parse_optional_bool(args.slot_enabled),
+                    slot_mode=_parse_slot_mode(args.slot_mode),
                     sys_work_mode=args.sys_work_mode,
                     require_master=not args.allow_non_master,
                 )
