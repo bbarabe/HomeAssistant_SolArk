@@ -59,6 +59,18 @@
       },
       "energy_total": {
         "name": "Energy Total"
+      },
+      "grid_status": {
+        "name": "Grid Status"
+      },
+      "generator_status": {
+        "name": "Generator Status"
+      },
+      "grid_import_energy": {
+        "name": "Grid Import Energy"
+      },
+      "grid_export_energy": {
+        "name": "Grid Export Energy"
       }
     }
   }

@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.1.0] - 2026-01-29
+
+### ✨ Improvements
+
+- Added native energy sensors for grid import/export:
+  - `sensor.solark_grid_import_energy`
+  - `sensor.solark_grid_export_energy`
+- Added status sensors:
+  - `sensor.solark_grid_status`
+  - `sensor.solark_generator_status`
+- Grid import/export now derives from `gridOrMeterPower` + direction flags when
+  no CT meter is present.
+- Battery power sign is inferred from flow direction flags (`toBat`/`batTo`).
+- Logging now respects Home Assistant's logging configuration (no forced file
+  logging).
+
+### 📚 Documentation
+
+- Updated Energy dashboard setup to use built-in energy sensors.
+- Updated sensor lists and troubleshooting guidance.
+
 ## [5.0.0] - 2024-11-21
 
 ### 🎉 Major Features
