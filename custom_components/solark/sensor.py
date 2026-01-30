@@ -221,6 +221,7 @@ class SolArkSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_suggested_object_id = f"{DOMAIN}_{description.key}"
         self._attr_has_entity_name = True
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
@@ -246,6 +247,7 @@ class SolArkIntegratedEnergySensor(CoordinatorEntity, SensorEntity, RestoreEntit
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_suggested_object_id = f"{DOMAIN}_{description.key}"
         self._attr_has_entity_name = True
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
@@ -365,6 +367,7 @@ def _create_integration_sensor(
     sensor = IntegrationSensor(**kwargs)  # type: ignore[operator]
     sensor._attr_device_info = device_info
     sensor._attr_has_entity_name = True
+    sensor._attr_suggested_object_id = f"{DOMAIN}_{description.key}"
     if not getattr(sensor, "unique_id", None):
         sensor._attr_unique_id = unique_id
     if getattr(sensor, "device_class", None) is None:
