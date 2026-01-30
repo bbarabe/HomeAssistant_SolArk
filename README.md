@@ -11,7 +11,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 - **Energy Dashboard Compatible** - Native support for Home Assistant's Energy dashboard
 - **Real-time Monitoring** - Live power flow tracking (PV, Battery, Grid, Load)
 - **Cloud-based** - No physical connections required
-- **17 Comprehensive Sensors** - All critical solar system metrics
+- **18 Comprehensive Sensors** - All critical solar system metrics
 - **Beautiful Dashboards** - Pre-built power flow visualizations
 - **Long-term Statistics** - Automatic energy tracking and historical data
 - **Easy Setup** - Simple configuration through Home Assistant UI
@@ -33,6 +33,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 | `sensor.solark_grid_export_energy` | Grid export energy | kWh | ✅ Direct use |
 | `sensor.solark_battery_charge_energy` | Battery charge energy | kWh | ✅ Direct use |
 | `sensor.solark_battery_discharge_energy` | Battery discharge energy | kWh | ✅ Direct use |
+| `sensor.solark_home_consumption_energy` | Home consumption energy | kWh | ✅ Direct use |
 | `sensor.solark_grid_status` | Grid status | - | Status |
 | `sensor.solark_generator_status` | Generator status | - | Status |
 | `sensor.solark_energy_today` | Daily production | kWh | ✅ Direct use |
@@ -88,7 +89,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 
 - Go to **Developer Tools** → **States**
 - Search `solark`
-- Verify 17 sensors with live data
+- Verify 18 sensors with live data
 
 ## ⚙️ System Work Mode Settings (Configuration Entities)
 

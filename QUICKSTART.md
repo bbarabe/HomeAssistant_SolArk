@@ -2,7 +2,7 @@
 
 ## What You'll Get
 
-After installation, you'll have 17 sensors monitoring your Sol-Ark system:
+After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 
 - `sensor.solark_pv_power` - Solar power generation
 - `sensor.solark_battery_power` - Battery charge/discharge
@@ -17,6 +17,7 @@ After installation, you'll have 17 sensors monitoring your Sol-Ark system:
 - `sensor.solark_grid_export_energy` - Grid export energy
 - `sensor.solark_battery_charge_energy` - Battery charge energy
 - `sensor.solark_battery_discharge_energy` - Battery discharge energy
+- `sensor.solark_home_consumption_energy` - Home consumption energy
 - `sensor.solark_grid_status` - Grid status
 - `sensor.solark_generator_status` - Generator status
 - `sensor.solark_energy_today` - Today's production
@@ -59,7 +60,7 @@ After installation, you'll have 17 sensors monitoring your Sol-Ark system:
 
 1. Go to **Developer Tools** → **States**
 2. Search for: `solark`
-3. You should see 17 sensors with live data
+3. You should see 18 sensors with live data
 4. If they show "unavailable", wait 30 seconds for first update
 
 ### Optional: Enable Configuration Writes

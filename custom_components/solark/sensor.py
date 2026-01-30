@@ -167,6 +167,14 @@ INTEGRATED_ENERGY_DESCRIPTIONS: list[SolArkIntegratedEnergyDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
+    SolArkIntegratedEnergyDescription(
+        key="home_consumption_energy",
+        source_key="load_power",
+        name="Home Consumption Energy",
+        native_unit_of_measurement="kWh",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
 ]
 
 try:
