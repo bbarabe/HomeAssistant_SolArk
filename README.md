@@ -90,6 +90,20 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 - Search `solark`
 - Verify 17 sensors with live data
 
+## ⚙️ System Work Mode Settings (Configuration Entities)
+
+The integration exposes System Work Mode settings as configuration entities
+(Number, Switch, Time) under the **Configuration** group for the SolArk device.
+
+**Safety default:** write access is disabled by default.
+
+To enable writes:
+1. Open **Settings** → **Devices & Services** → **SolArk Cloud**
+2. Click **Configure**
+3. Toggle **Allow write access**
+
+When write access is off, changes are blocked and will raise an error.
+
 ## 🧪 CLI Testing (Optional)
 
 If you want to test the SolArk Cloud API from your machine:
@@ -325,4 +339,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Note:** Not officially affiliated with Sol-Ark. Community-developed integration.
 
-**Version:** 5.1.1 | **Supports:** Sol-Ark 5K/8K/12K/15K | **HA:** 2023.5.0+
+**Version:** 5.2.0 | **Supports:** Sol-Ark 5K/8K/12K/15K | **HA:** 2023.5.0+

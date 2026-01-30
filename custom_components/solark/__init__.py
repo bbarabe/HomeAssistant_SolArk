@@ -17,9 +17,11 @@ from .const import (
     CONF_BASE_URL,
     CONF_API_URL,
     CONF_SCAN_INTERVAL,
+    CONF_ALLOW_WRITE,
     DEFAULT_BASE_URL,
     DEFAULT_API_URL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_ALLOW_WRITE,
     PLATFORMS,
 )
 
@@ -55,6 +57,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
     )
+    allow_write_access = bool(
+        entry.options.get(
+            CONF_ALLOW_WRITE,
+            entry.data.get(CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE),
+        )
+    )
 
     _LOGGER.debug(
         "Setting up SolArk entry %s with scan_interval=%s seconds",
@@ -81,6 +89,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except SolArkCloudAPIError as err:
             raise UpdateFailed(str(err)) from err
 
+    async def async_update_settings() -> dict[str, Any]:
+        """Fetch master inverter settings for configuration entities."""
+        try:
+            sn, settings = await api.get_master_common_settings()
+            return {"sn": sn, "settings": settings}
+        except SolArkCloudAPIError as err:
+            raise UpdateFailed(str(err)) from err
+
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
@@ -88,12 +104,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_method=async_update_data,
         update_interval=timedelta(seconds=scan_interval),
     )
+    settings_coordinator = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name=f"SolArk {plant_id} Settings",
+        update_method=async_update_settings,
+        update_interval=timedelta(seconds=max(scan_interval, 300)),
+    )
 
     await coordinator.async_config_entry_first_refresh()
+    await settings_coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
         "coordinator": coordinator,
+        "settings_coordinator": settings_coordinator,
+        "allow_write_access": allow_write_access,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

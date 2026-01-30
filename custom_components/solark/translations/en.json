@@ -10,7 +10,8 @@
           "plant_id": "Plant ID",
           "base_url": "Base URL",
           "api_url": "API URL",
-          "scan_interval": "Polling interval (seconds)"
+          "scan_interval": "Polling interval (seconds)",
+          "allow_write_access": "Allow write access"
         }
       }
     },
@@ -26,7 +27,8 @@
         "title": "SolArk Cloud options",
         "description": "Adjust advanced options for the SolArk integration.",
         "data": {
-          "scan_interval": "Polling interval (seconds)"
+          "scan_interval": "Polling interval (seconds)",
+          "allow_write_access": "Allow write access"
         }
       }
     }
@@ -83,6 +85,123 @@
       },
       "battery_discharge_energy": {
         "name": "Battery Discharge Energy"
+      }
+    },
+    "number": {
+      "sysWorkMode": {
+        "name": "System Work Mode"
+      },
+      "energyMode": {
+        "name": "Work Mode"
+      },
+      "solarMaxSellPower": {
+        "name": "Max Solar Power"
+      },
+      "zeroExportPower": {
+        "name": "Zero Export Power"
+      },
+      "pvMaxLimit": {
+        "name": "Max Sell Power"
+      },
+      "sellTime1Pac": {
+        "name": "Power 1"
+      },
+      "sellTime2Pac": {
+        "name": "Power 2"
+      },
+      "sellTime3Pac": {
+        "name": "Power 3"
+      },
+      "sellTime4Pac": {
+        "name": "Power 4"
+      },
+      "sellTime5Pac": {
+        "name": "Power 5"
+      },
+      "sellTime6Pac": {
+        "name": "Power 6"
+      },
+      "cap1": {
+        "name": "Battery SOC 1"
+      },
+      "cap2": {
+        "name": "Battery SOC 2"
+      },
+      "cap3": {
+        "name": "Battery SOC 3"
+      },
+      "cap4": {
+        "name": "Battery SOC 4"
+      },
+      "cap5": {
+        "name": "Battery SOC 5"
+      },
+      "cap6": {
+        "name": "Battery SOC 6"
+      }
+    },
+    "switch": {
+      "solarSell": {
+        "name": "Solar Sell"
+      },
+      "peakAndVallery": {
+        "name": "Energy Pattern (Time Of Use)"
+      },
+      "time1on": {
+        "name": "Sell Time 1 Enabled"
+      },
+      "time2on": {
+        "name": "Sell Time 2 Enabled"
+      },
+      "time3on": {
+        "name": "Sell Time 3 Enabled"
+      },
+      "time4on": {
+        "name": "Sell Time 4 Enabled"
+      },
+      "time5on": {
+        "name": "Sell Time 5 Enabled"
+      },
+      "time6on": {
+        "name": "Sell Time 6 Enabled"
+      },
+      "genTime1on": {
+        "name": "Charge Time 1 Enabled"
+      },
+      "genTime2on": {
+        "name": "Charge Time 2 Enabled"
+      },
+      "genTime3on": {
+        "name": "Charge Time 3 Enabled"
+      },
+      "genTime4on": {
+        "name": "Charge Time 4 Enabled"
+      },
+      "genTime5on": {
+        "name": "Charge Time 5 Enabled"
+      },
+      "genTime6on": {
+        "name": "Charge Time 6 Enabled"
+      }
+    },
+    "time": {
+      "sellTime1": {
+        "name": "Time 1"
+      },
+      "sellTime2": {
+        "name": "Time 2"
+      },
+      "sellTime3": {
+        "name": "Time 3"
+      },
+      "sellTime4": {
+        "name": "Time 4"
+      },
+      "sellTime5": {
+        "name": "Time 5"
+      },
+      "sellTime6": {
+        "name": "Time 6"
       }
     }
   }
