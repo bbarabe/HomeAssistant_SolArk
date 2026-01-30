@@ -521,6 +521,18 @@ class SolArkCloudAPI:
             if cur_volt != 0.0 or charge_current != 0.0:
                 sensors["battery_power"] = cur_volt * charge_current
 
+        # ----- Battery charge/discharge split -----
+        battery_power = self._safe_float(sensors.get("battery_power"))
+        if battery_power > 0.0:
+            sensors["battery_discharge_power"] = battery_power
+            sensors["battery_charge_power"] = 0.0
+        elif battery_power < 0.0:
+            sensors["battery_discharge_power"] = 0.0
+            sensors["battery_charge_power"] = abs(battery_power)
+        else:
+            sensors["battery_discharge_power"] = 0.0
+            sensors["battery_charge_power"] = 0.0
+
         # ----- Grid / Meter power (flow) -----
         if "gridOrMeterPower" in data:
             sensors["grid_power"] = self._safe_float(data.get("gridOrMeterPower"))
@@ -602,6 +614,8 @@ class SolArkCloudAPI:
         sensors.setdefault("energy_total", 0.0)
         sensors.setdefault("grid_status", "Unknown")
         sensors.setdefault("generator_status", "Unknown")
+        sensors.setdefault("battery_charge_power", 0.0)
+        sensors.setdefault("battery_discharge_power", 0.0)
 
         _LOGGER.debug("Parsed sensors dict: %s", sensors)
         return sensors

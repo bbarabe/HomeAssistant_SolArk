@@ -53,16 +53,17 @@ trapezoidal (Riemann) integration of the power sensors.
 
 ### Step 4: Configure Home Battery (Optional)
 
-If you want to track battery energy flow:
+The integration provides battery charge/discharge energy sensors directly:
 
-#### 6a. Create Battery Energy Helpers
+- `sensor.solark_battery_charge_energy`
+- `sensor.solark_battery_discharge_energy`
 
-**Battery Discharge Energy:**
-1. Create Riemann sum helper
-2. Input: Create a template sensor first (see below)
-3. Or skip battery tracking for now (it's complex)
+In Energy Configuration:
 
-**Note:** Battery energy tracking is more complex because you need to separate charge vs discharge. This requires template sensors to split the battery_power into positive (discharge) and negative (charge) components first.
+1. Under **Battery systems**, click **ADD BATTERY SYSTEM**
+2. **Energy going in**: select `sensor.solark_battery_charge_energy`
+3. **Energy going out**: select `sensor.solark_battery_discharge_energy`
+4. Click **SAVE**
 
 ### Step 5: Verify Configuration
 
@@ -72,47 +73,6 @@ If you want to track battery energy flow:
    - Solar production graph
    - Grid consumption/export
    - Home consumption (if configured)
-
-## Advanced: Battery Energy Tracking
-
-To properly track battery energy, you need to create template sensors that split charge/discharge:
-
-### Create Template Sensors
-
-Add to your `configuration.yaml`:
-
-```yaml
-template:
-  - sensor:
-      # Battery Discharge Power (only positive values)
-      - name: "Battery Discharge Power"
-        unique_id: battery_discharge_power
-        unit_of_measurement: "W"
-        device_class: power
-        state_class: measurement
-        state: >
-          {% set power = states('sensor.solark_battery_power') | float(0) %}
-          {{ max(0, power) }}
-      
-      # Battery Charge Power (only negative values, converted to positive)
-      - name: "Battery Charge Power"
-        unique_id: battery_charge_power
-        unit_of_measurement: "W"
-        device_class: power
-        state_class: measurement
-        state: >
-          {% set power = states('sensor.solark_battery_power') | float(0) %}
-          {{ max(0, -power) }}
-```
-
-Then create Riemann Sum helpers for each:
-1. `sensor.battery_discharge_energy` (from `sensor.battery_discharge_power`)
-2. `sensor.battery_charge_energy` (from `sensor.battery_charge_power`)
-
-Finally, add to Energy dashboard:
-- Battery systems → ADD BATTERY SYSTEM
-- Energy going in: `sensor.battery_charge_energy`
-- Energy going out: `sensor.battery_discharge_energy`
 
 ## Troubleshooting
 
@@ -142,7 +102,7 @@ Finally, add to Energy dashboard:
 ### Energy Values Seem Wrong
 
 **Causes:**
-- Battery Riemann Sum helpers created recently (they start from zero)
+- Energy sensors created recently (they start from zero)
 - Integration was offline/unavailable during periods
 - Power sensor reporting incorrect values
 
@@ -206,37 +166,12 @@ Home Assistant will then show cost calculations in the Energy dashboard.
 
 ## Example Complete Configuration
 
-Here's a complete configuration.yaml section for full energy tracking:
-
-```yaml
-# Template sensors for battery split
-template:
-  - sensor:
-      - name: "Battery Discharge Power"
-        unique_id: battery_discharge_power
-        unit_of_measurement: "W"
-        device_class: power
-        state_class: measurement
-        state: >
-          {% set power = states('sensor.solark_battery_power') | float(0) %}
-          {{ max(0, power) }}
-      
-      - name: "Battery Charge Power"
-        unique_id: battery_charge_power
-        unit_of_measurement: "W"
-        device_class: power
-        state_class: measurement
-        state: >
-          {% set power = states('sensor.solark_battery_power') | float(0) %}
-          {{ max(0, -power) }}
-```
-
-Finally configure Energy dashboard:
+Use these sensors directly in the Energy dashboard:
 - **Solar**: sensor.solark_energy_total
 - **Grid Import**: sensor.solark_grid_import_energy
 - **Grid Export**: sensor.solark_grid_export_energy
-- **Battery In**: sensor.battery_charge_energy
-- **Battery Out**: sensor.battery_discharge_energy
+- **Battery In**: sensor.solark_battery_charge_energy
+- **Battery Out**: sensor.solark_battery_discharge_energy
 
 ## Summary
 
@@ -244,7 +179,7 @@ Your SolArk Cloud integration is now fully Energy dashboard compatible! The key 
 
 1. ✅ Energy sensors have `state_class: TOTAL_INCREASING` (done in v5.0.0+)
 2. ✅ Power sensors have `state_class: MEASUREMENT` (done in v5.0.0+)
-3. ✅ Grid import/export energy sensors are provided by the integration
+3. ✅ Grid and battery energy sensors are provided by the integration
 4. ✅ Configure Energy dashboard with your sensors
 
 After setup, you'll have comprehensive energy tracking showing exactly where your energy comes from and goes to! 🌞🔋⚡

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.1.1] - 2026-01-30
+
+### ✨ Improvements
+
+- Added native battery charge/discharge power sensors:
+  - `sensor.solark_battery_charge_power`
+  - `sensor.solark_battery_discharge_power`
+- Added native battery charge/discharge energy sensors using the integration
+  method (trapezoidal):
+  - `sensor.solark_battery_charge_energy`
+  - `sensor.solark_battery_discharge_energy`
+
+### 📚 Documentation
+
+- Updated Energy dashboard setup to use built-in battery energy sensors.
+- Updated sensor lists and counts in README and Quick Start.
+
 ## [5.1.0] - 2026-01-29
 
 ### ✨ Improvements
