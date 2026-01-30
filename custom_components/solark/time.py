@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import time as dt_time
+from datetime import time as dt_time, timedelta
+import asyncio
 from typing import Any
 
 from homeassistant.components.time import TimeEntity, TimeEntityDescription
@@ -12,6 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .const import CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE, DOMAIN
 
@@ -66,6 +68,8 @@ class SolArkSettingTime(CoordinatorEntity, TimeEntity):
             "name": "SolArk",
             "manufacturer": "SolArk",
         }
+        self._pending_value: dt_time | None = None
+        self._pending_until = None
 
     @property
     def native_value(self) -> dt_time | None:
@@ -74,14 +78,16 @@ class SolArkSettingTime(CoordinatorEntity, TimeEntity):
         if not value:
             return None
         if isinstance(value, dt_time):
-            return value
-        if isinstance(value, str) and ":" in value:
+            current = value
+        elif isinstance(value, str) and ":" in value:
             try:
                 hour_str, minute_str = value.split(":", 1)
-                return dt_time(int(hour_str), int(minute_str))
+                current = dt_time(int(hour_str), int(minute_str))
             except ValueError:
-                return None
-        return None
+                current = None
+        else:
+            current = None
+        return self._apply_pending(current)
 
     async def async_set_value(self, value: dt_time) -> None:
         allow_write = bool(
@@ -104,9 +110,32 @@ class SolArkSettingTime(CoordinatorEntity, TimeEntity):
             updates={self.entity_description.key: payload_value},
             require_master=True,
         )
+        self._set_pending_value(value)
+        self.hass.async_create_task(self._refresh_after_delay())
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
         """Force a refresh so the UI reverts to the current value."""
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
+
+    def _set_pending_value(self, value: dt_time) -> None:
+        self._pending_value = value
+        self._pending_until = dt_util.utcnow() + timedelta(seconds=30)
+
+    def _apply_pending(self, current: dt_time | None) -> dt_time | None:
+        if self._pending_value is None or self._pending_until is None:
+            return current
+        if dt_util.utcnow() > self._pending_until:
+            self._pending_value = None
+            self._pending_until = None
+            return current
+        if current == self._pending_value:
+            self._pending_value = None
+            self._pending_until = None
+            return current
+        return self._pending_value
+
+    async def _refresh_after_delay(self) -> None:
+        await asyncio.sleep(3)
+        await self.coordinator.async_request_refresh()
