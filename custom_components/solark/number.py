@@ -58,7 +58,7 @@ for slot in range(1, 7):
     NUMBER_DESCRIPTIONS.append(
         SolArkNumberDescription(
             key=f"sellTime{slot}Pac",
-            name=f"Power {slot}",
+            name=f"Slot {slot} - Power",
             native_unit_of_measurement="W",
             native_min_value=0,
             native_max_value=14000,
@@ -69,7 +69,7 @@ for slot in range(1, 7):
     NUMBER_DESCRIPTIONS.append(
         SolArkNumberDescription(
             key=f"cap{slot}",
-            name=f"Battery SOC {slot}",
+            name=f"Slot {slot} - Battery SOC",
             native_unit_of_measurement="%",
             native_min_value=0,
             native_max_value=100,
