@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Options updates now reload the integration so write access toggles take effect.
 - Settings entities now optimistically show new values briefly and retry refresh
   to handle API propagation delays.
+- Work Mode and Energy Pattern are now select entities with labeled options.
 
 ### 📚 Documentation
 
