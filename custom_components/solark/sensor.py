@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import asyncio
 import inspect
 from typing import Any, Iterable
 
@@ -24,6 +25,9 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .solark_logging import get_logger
+
+_LOGGER = get_logger(__name__)
 
 
 @dataclass
@@ -208,6 +212,8 @@ async def async_setup_entry(
     if energy_entities:
         async_add_entities(energy_entities, update_before_add=True)
 
+    hass.async_create_task(_async_fix_grid_power_entity_id(hass, entry))
+
 
 class SolArkSensor(CoordinatorEntity, SensorEntity):
     """Representation of a SolArk sensor."""
@@ -375,6 +381,29 @@ def _create_integration_sensor(
     if getattr(sensor, "state_class", None) is None:
         sensor._attr_state_class = SensorStateClass.TOTAL_INCREASING
     return sensor
+
+
+async def _async_fix_grid_power_entity_id(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Ensure grid power entity_id stays consistent after re-adds."""
+    await asyncio.sleep(0)
+    registry = er.async_get(hass)
+    unique_id = f"{entry.entry_id}_grid_power"
+    entity_id = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+    if not entity_id:
+        return
+    desired = f"sensor.{DOMAIN}_grid_power"
+    if entity_id == desired:
+        return
+    if registry.async_get(desired):
+        _LOGGER.debug(
+            "Grid power entity id already in use (%s); keeping %s",
+            desired,
+            entity_id,
+        )
+        return
+    registry.async_update_entity(entity_id, new_entity_id=desired)
 
 
 def _build_integration_kwargs(

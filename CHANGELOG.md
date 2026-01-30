@@ -17,6 +17,8 @@ All notable changes to this project will be documented in this file.
 - Added Time Of Use day-of-week switches.
 - Added Home Consumption Energy sensor (integrated from load power).
 - Added config entry migration to seed new options (allow write access).
+- Grid power entity ID is now normalized to `sensor.solark_grid_power` after
+  re-adding the integration.
 
 ### 📚 Documentation
 
