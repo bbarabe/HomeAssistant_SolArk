@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+import inspect
+from typing import Any, Iterable
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -13,6 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -47,6 +49,20 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
     SolArkSensorDescription(
         key="battery_power",
         name="Battery Power",
+        native_unit_of_measurement="W",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SolArkSensorDescription(
+        key="battery_charge_power",
+        name="Battery Charge Power",
+        native_unit_of_measurement="W",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SolArkSensorDescription(
+        key="battery_discharge_power",
+        name="Battery Discharge Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -135,7 +151,35 @@ INTEGRATED_ENERGY_DESCRIPTIONS: list[SolArkIntegratedEnergyDescription] = [
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
+    SolArkIntegratedEnergyDescription(
+        key="battery_charge_energy",
+        source_key="battery_charge_power",
+        name="Battery Charge Energy",
+        native_unit_of_measurement="kWh",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SolArkIntegratedEnergyDescription(
+        key="battery_discharge_energy",
+        source_key="battery_discharge_power",
+        name="Battery Discharge Energy",
+        native_unit_of_measurement="kWh",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
 ]
+
+try:
+    from homeassistant.components.integration.sensor import (
+        IntegrationSensor,
+        IntegrationMethod,
+    )
+
+    HAS_INTEGRATION_SENSOR = True
+except Exception:  # pragma: no cover - handled at runtime in HA
+    IntegrationSensor = None  # type: ignore[assignment]
+    IntegrationMethod = None  # type: ignore[assignment]
+    HAS_INTEGRATION_SENSOR = False
 
 
 async def async_setup_entry(
@@ -150,11 +194,11 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         SolArkSensor(coordinator, entry, desc) for desc in SENSOR_DESCRIPTIONS
     ]
-    entities.extend(
-        SolArkIntegratedEnergySensor(coordinator, entry, desc)
-        for desc in INTEGRATED_ENERGY_DESCRIPTIONS
-    )
     async_add_entities(entities, update_before_add=True)
+
+    energy_entities = _build_energy_entities(hass, entry, coordinator)
+    if energy_entities:
+        async_add_entities(energy_entities, update_before_add=True)
 
 
 class SolArkSensor(CoordinatorEntity, SensorEntity):
@@ -253,3 +297,119 @@ class SolArkIntegratedEnergySensor(CoordinatorEntity, SensorEntity, RestoreEntit
         self._last_update = now
         self._last_power = power_w
         super()._handle_coordinator_update()
+
+
+def _build_energy_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: DataUpdateCoordinator,
+) -> list[SensorEntity]:
+    if not INTEGRATED_ENERGY_DESCRIPTIONS:
+        return []
+
+    if HAS_INTEGRATION_SENSOR:
+        registry = er.async_get(hass)
+        device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "SolArk",
+            "manufacturer": "SolArk",
+        }
+        return [
+            _create_integration_sensor(
+                hass=hass,
+                registry=registry,
+                entry=entry,
+                description=desc,
+                device_info=device_info,
+            )
+            for desc in INTEGRATED_ENERGY_DESCRIPTIONS
+        ]
+
+    return [
+        SolArkIntegratedEnergySensor(coordinator, entry, desc)
+        for desc in INTEGRATED_ENERGY_DESCRIPTIONS
+    ]
+
+
+def _create_integration_sensor(
+    hass: HomeAssistant,
+    registry: er.EntityRegistry,
+    entry: ConfigEntry,
+    description: SolArkIntegratedEnergyDescription,
+    device_info: dict[str, Any],
+) -> SensorEntity:
+    source_unique_id = f"{entry.entry_id}_{description.source_key}"
+    source_entity_id = registry.async_get_entity_id(
+        "sensor", DOMAIN, source_unique_id
+    ) or f"sensor.solark_{description.source_key}"
+
+    name = description.name or description.key
+    unique_id = f"{entry.entry_id}_{description.key}"
+    integration_method = _resolve_integration_method()
+    kwargs = _build_integration_kwargs(
+        hass=hass,
+        source_entity_id=source_entity_id,
+        name=name,
+        unique_id=unique_id,
+        integration_method=integration_method,
+    )
+
+    sensor = IntegrationSensor(**kwargs)  # type: ignore[operator]
+    sensor._attr_device_info = device_info
+    sensor._attr_has_entity_name = True
+    if not getattr(sensor, "unique_id", None):
+        sensor._attr_unique_id = unique_id
+    if getattr(sensor, "device_class", None) is None:
+        sensor._attr_device_class = SensorDeviceClass.ENERGY
+    if getattr(sensor, "state_class", None) is None:
+        sensor._attr_state_class = SensorStateClass.TOTAL_INCREASING
+    return sensor
+
+
+def _build_integration_kwargs(
+    *,
+    hass: HomeAssistant,
+    source_entity_id: str,
+    name: str,
+    unique_id: str,
+    integration_method: Any,
+) -> dict[str, Any]:
+    params = inspect.signature(IntegrationSensor.__init__).parameters  # type: ignore[union-attr]
+    kwargs: dict[str, Any] = {}
+
+    _set_if_present(params, kwargs, "hass", hass)
+    _set_if_present(
+        params,
+        kwargs,
+        ("source_entity_id", "source_entity", "source"),
+        source_entity_id,
+    )
+    _set_if_present(params, kwargs, "name", name)
+    _set_if_present(params, kwargs, ("round_digits", "round"), 3)
+    _set_if_present(params, kwargs, "unit_prefix", "k")
+    _set_if_present(params, kwargs, "unit_time", "h")
+    _set_if_present(params, kwargs, ("integration_method", "method"), integration_method)
+    _set_if_present(params, kwargs, "unique_id", unique_id)
+    _set_if_present(params, kwargs, "unit_of_measurement", "kWh")
+
+    return kwargs
+
+
+def _set_if_present(
+    params: Iterable[str],
+    kwargs: dict[str, Any],
+    keys: str | tuple[str, ...],
+    value: Any,
+) -> None:
+    if isinstance(keys, str):
+        keys = (keys,)
+    for key in keys:
+        if key in params:
+            kwargs[key] = value
+            return
+
+
+def _resolve_integration_method() -> Any:
+    if IntegrationMethod is None:
+        return "trapezoidal"
+    return getattr(IntegrationMethod, "TRAPEZOIDAL", "trapezoidal")

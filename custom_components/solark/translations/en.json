@@ -39,6 +39,12 @@
       "battery_power": {
         "name": "Battery Power"
       },
+      "battery_charge_power": {
+        "name": "Battery Charge Power"
+      },
+      "battery_discharge_power": {
+        "name": "Battery Discharge Power"
+      },
       "grid_power": {
         "name": "Grid Power (Net)"
       },
@@ -71,6 +77,12 @@
       },
       "grid_export_energy": {
         "name": "Grid Export Energy"
+      },
+      "battery_charge_energy": {
+        "name": "Battery Charge Energy"
+      },
+      "battery_discharge_energy": {
+        "name": "Battery Discharge Energy"
       }
     }
   }
