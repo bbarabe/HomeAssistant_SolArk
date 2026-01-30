@@ -135,6 +135,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate config entries to the latest version."""
+    version = entry.version
+    data = dict(entry.data)
+    options = dict(entry.options)
+
+    if version < 2:
+        if CONF_ALLOW_WRITE not in options:
+            options[CONF_ALLOW_WRITE] = data.get(
+                CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE
+            )
+        entry.version = 2
+
+    hass.config_entries.async_update_entry(entry, data=data, options=options)
+    _LOGGER.info("Migrated SolArk config entry from v%s to v%s", version, entry.version)
+    return True
+
+
 async def _async_update_listener(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> None:
