@@ -1,4 +1,4 @@
-"""SolArk configuration number entities."""
+"""SolArk configuration select entities."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,11 +6,7 @@ from datetime import timedelta
 import asyncio
 from typing import Any
 
-from homeassistant.components.number import (
-    NumberEntity,
-    NumberEntityDescription,
-    NumberMode,
-)
+from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -23,63 +19,30 @@ from .const import CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE, DOMAIN
 
 
 @dataclass
-class SolArkNumberDescription(NumberEntityDescription):
+class SolArkSelectDescription(SelectEntityDescription):
     key: str
+    options_map: dict[str, int]
 
 
-NUMBER_DESCRIPTIONS: list[SolArkNumberDescription] = [
-    SolArkNumberDescription(
-        key="solarMaxSellPower",
-        name="Max Solar Power",
-        native_unit_of_measurement="W",
-        native_min_value=500,
-        native_max_value=19500,
-        native_step=1,
-        mode=NumberMode.BOX,
+SELECT_DESCRIPTIONS: list[SolArkSelectDescription] = [
+    SolArkSelectDescription(
+        key="sysWorkMode",
+        name="Work Mode",
+        options_map={
+            "Grid Selling": 0,
+            "Limited power to Load": 1,
+            "Limited to Home": 2,
+        },
     ),
-    SolArkNumberDescription(
-        key="zeroExportPower",
-        name="Zero Export Power",
-        native_unit_of_measurement="W",
-        native_min_value=0,
-        native_max_value=500,
-        native_step=1,
-        mode=NumberMode.BOX,
-    ),
-    SolArkNumberDescription(
-        key="pvMaxLimit",
-        name="Max Sell Power",
-        native_unit_of_measurement="W",
-        native_min_value=500,
-        native_max_value=32000,
-        native_step=1,
-        mode=NumberMode.BOX,
+    SolArkSelectDescription(
+        key="energyMode",
+        name="Energy Pattern",
+        options_map={
+            "Batt First": 0,
+            "Load First": 1,
+        },
     ),
 ]
-
-for slot in range(1, 7):
-    NUMBER_DESCRIPTIONS.append(
-        SolArkNumberDescription(
-            key=f"sellTime{slot}Pac",
-            name=f"Power {slot}",
-            native_unit_of_measurement="W",
-            native_min_value=0,
-            native_max_value=14000,
-            native_step=1,
-            mode=NumberMode.BOX,
-        )
-    )
-    NUMBER_DESCRIPTIONS.append(
-        SolArkNumberDescription(
-            key=f"cap{slot}",
-            name=f"Battery SOC {slot}",
-            native_unit_of_measurement="%",
-            native_min_value=0,
-            native_max_value=100,
-            native_step=1,
-            mode=NumberMode.BOX,
-        )
-    )
 
 
 async def async_setup_entry(
@@ -90,24 +53,25 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: DataUpdateCoordinator = data["settings_coordinator"]
     api = data["api"]
-    entities: list[SolArkSettingNumber] = [
-        SolArkSettingNumber(coordinator, entry, api, desc)
-        for desc in NUMBER_DESCRIPTIONS
+
+    entities: list[SolArkSettingSelect] = [
+        SolArkSettingSelect(coordinator, entry, api, desc)
+        for desc in SELECT_DESCRIPTIONS
     ]
     async_add_entities(entities, update_before_add=True)
 
 
-class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
-    """Number entity for SolArk configuration."""
+class SolArkSettingSelect(CoordinatorEntity, SelectEntity):
+    """Select entity for SolArk configuration."""
 
-    entity_description: SolArkNumberDescription
+    entity_description: SolArkSelectDescription
 
     def __init__(
         self,
         coordinator: DataUpdateCoordinator,
         entry: ConfigEntry,
         api,
-        description: SolArkNumberDescription,
+        description: SolArkSelectDescription,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
@@ -116,27 +80,32 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_has_entity_name = True
         self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_options = list(description.options_map.keys())
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": "SolArk",
             "manufacturer": "SolArk",
         }
-        self._pending_value: float | None = None
+        self._pending_value: str | None = None
         self._pending_until = None
 
     @property
-    def native_value(self) -> float | None:
+    def current_option(self) -> str | None:
         settings = (self.coordinator.data or {}).get("settings") or {}
         value = settings.get(self.entity_description.key)
-        if value is None:
-            return None
         try:
-            current = float(value)
+            current_value = int(value)
         except (TypeError, ValueError):
-            current = None
+            current_value = None
+        current = None
+        if current_value is not None:
+            for label, mapped in self.entity_description.options_map.items():
+                if mapped == current_value:
+                    current = label
+                    break
         return self._apply_pending(current)
 
-    async def async_set_native_value(self, value: float) -> None:
+    async def async_select_option(self, option: str) -> None:
         allow_write = bool(
             self.hass.data[DOMAIN][self._entry_id].get(
                 "allow_write_access", DEFAULT_ALLOW_WRITE
@@ -151,40 +120,34 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
         if not sn:
             raise HomeAssistantError("Master inverter not available.")
 
-        payload_value: Any
-        if self.entity_description.key.startswith("cap") or self.entity_description.key.endswith(
-            "Pac"
-        ):
-            payload_value = int(value)
-        else:
-            payload_value = int(value) if value.is_integer() else value
+        if option not in self.entity_description.options_map:
+            raise HomeAssistantError(f"Invalid option: {option}")
 
         await self._api.set_common_settings(
             sn=sn,
-            updates={self.entity_description.key: payload_value},
+            updates={self.entity_description.key: self.entity_description.options_map[option]},
             require_master=True,
         )
-        self._set_pending_value(float(value))
+        self._set_pending_value(option)
         self.hass.async_create_task(self._refresh_after_delay())
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
-        """Force a refresh so the UI reverts to the current value."""
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
 
-    def _set_pending_value(self, value: float) -> None:
+    def _set_pending_value(self, value: str) -> None:
         self._pending_value = value
         self._pending_until = dt_util.utcnow() + timedelta(seconds=30)
 
-    def _apply_pending(self, current: float | None) -> float | None:
+    def _apply_pending(self, current: str | None) -> str | None:
         if self._pending_value is None or self._pending_until is None:
             return current
         if dt_util.utcnow() > self._pending_until:
             self._pending_value = None
             self._pending_until = None
             return current
-        if current is not None and abs(current - self._pending_value) < 0.001:
+        if current == self._pending_value:
             self._pending_value = None
             self._pending_until = None
             return current

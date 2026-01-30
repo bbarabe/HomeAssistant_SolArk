@@ -88,12 +88,6 @@
       }
     },
     "number": {
-      "sysWorkMode": {
-        "name": "System Work Mode"
-      },
-      "energyMode": {
-        "name": "Work Mode"
-      },
       "solarMaxSellPower": {
         "name": "Max Solar Power"
       },
@@ -138,6 +132,14 @@
       },
       "cap6": {
         "name": "Battery SOC 6"
+      }
+    },
+    "select": {
+      "sysWorkMode": {
+        "name": "Work Mode"
+      },
+      "energyMode": {
+        "name": "Energy Pattern"
       }
     },
     "switch": {
