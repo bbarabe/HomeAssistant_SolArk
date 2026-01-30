@@ -85,6 +85,9 @@
       },
       "battery_discharge_energy": {
         "name": "Battery Discharge Energy"
+      },
+      "home_consumption_energy": {
+        "name": "Home Consumption Energy"
       }
     },
     "number": {

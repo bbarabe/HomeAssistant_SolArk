@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
   to handle API propagation delays.
 - Work Mode and Energy Pattern are now select entities with labeled options.
 - Added Time Of Use day-of-week switches.
+- Added Home Consumption Energy sensor (integrated from load power).
 
 ### 📚 Documentation
 

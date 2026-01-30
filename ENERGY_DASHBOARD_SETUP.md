@@ -172,6 +172,7 @@ Use these sensors directly in the Energy dashboard:
 - **Grid Export**: sensor.solark_grid_export_energy
 - **Battery In**: sensor.solark_battery_charge_energy
 - **Battery Out**: sensor.solark_battery_discharge_energy
+- **Home Consumption**: sensor.solark_home_consumption_energy
 
 ## Summary
 
@@ -179,7 +180,7 @@ Your SolArk Cloud integration is now fully Energy dashboard compatible! The key 
 
 1. ✅ Energy sensors have `state_class: TOTAL_INCREASING` (done in v5.0.0+)
 2. ✅ Power sensors have `state_class: MEASUREMENT` (done in v5.0.0+)
-3. ✅ Grid and battery energy sensors are provided by the integration
+3. ✅ Grid, battery, and home consumption energy sensors are provided by the integration
 4. ✅ Configure Energy dashboard with your sensors
 
 After setup, you'll have comprehensive energy tracking showing exactly where your energy comes from and goes to! 🌞🔋⚡
