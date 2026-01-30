@@ -118,6 +118,11 @@ Then restart HA and refresh your browser (Ctrl+Shift+R).
 - Wait 30-60 seconds after restart
 - Check **Settings** → **System** → **Logs** for errors
 
+### "Grid power entity ID looks wrong"
+- The net grid power entity should be `sensor.solark_grid_power`.
+- If you see `sensor.solark_grid_power_net`, reload the integration or restart
+  Home Assistant so the entity registry rename runs.
+
 ### "Dashboard is blank"
 - Make sure you installed Mushroom Cards from HACS
 - Make sure you installed ApexCharts Card from HACS

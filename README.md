@@ -278,6 +278,11 @@ template:
 - Reload integration
 - Check Home Assistant logs for `custom_components.solark`
 
+### Grid Power Entity ID Looks Wrong
+- The net grid power entity should be `sensor.solark_grid_power`.
+- If you see `sensor.solark_grid_power_net` after reinstalling, reload the
+  integration or restart Home Assistant so the entity registry rename runs.
+
 ### Dashboard Shows Blank
 1. Verify sensors exist: **Developer Tools** → **States**
 2. Install Mushroom Cards and ApexCharts Card
