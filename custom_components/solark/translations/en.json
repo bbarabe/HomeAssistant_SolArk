@@ -184,6 +184,27 @@
       },
       "genTime6on": {
         "name": "Charge Time 6 Enabled"
+      },
+      "mondayOn": {
+        "name": "Time Of Use Monday"
+      },
+      "tuesdayOn": {
+        "name": "Time Of Use Tuesday"
+      },
+      "wednesdayOn": {
+        "name": "Time Of Use Wednesday"
+      },
+      "thursdayOn": {
+        "name": "Time Of Use Thursday"
+      },
+      "fridayOn": {
+        "name": "Time Of Use Friday"
+      },
+      "saturdayOn": {
+        "name": "Time Of Use Saturday"
+      },
+      "sundayOn": {
+        "name": "Time Of Use Sunday"
       }
     },
     "time": {

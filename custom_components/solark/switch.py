@@ -58,6 +58,24 @@ for slot in range(1, 7):
         )
     )
 
+for day_key, day_label in (
+    ("mondayOn", "Monday"),
+    ("tuesdayOn", "Tuesday"),
+    ("wednesdayOn", "Wednesday"),
+    ("thursdayOn", "Thursday"),
+    ("fridayOn", "Friday"),
+    ("saturdayOn", "Saturday"),
+    ("sundayOn", "Sunday"),
+):
+    SWITCH_DESCRIPTIONS.append(
+        SolArkSwitchDescription(
+            key=day_key,
+            name=f"Time Of Use {day_label}",
+            on_value=True,
+            off_value=False,
+        )
+    )
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
