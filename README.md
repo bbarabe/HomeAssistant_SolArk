@@ -106,7 +106,7 @@ To enable writes:
 When write access is off, changes are blocked and will raise an error.
 
 Note: SolArk's API maps Charge Time to `timeXon` fields and Sell Time to
-`genTimeXon`. Each time slot uses a single Sell/Charge toggle that updates
+`genTimeXon`. Each time slot uses a single Sell/Charge select that updates
 both fields together. When you change multiple settings quickly, the
 integration temporarily remembers recent writes (about 30 seconds) and
 clears them after a successful fetch (or once the server reflects them) so

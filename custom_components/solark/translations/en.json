@@ -101,40 +101,40 @@
         "name": "Max Sell Power"
       },
       "sellTime1Pac": {
-        "name": "Power 1"
+        "name": "Slot 1 - Power"
       },
       "sellTime2Pac": {
-        "name": "Power 2"
+        "name": "Slot 2 - Power"
       },
       "sellTime3Pac": {
-        "name": "Power 3"
+        "name": "Slot 3 - Power"
       },
       "sellTime4Pac": {
-        "name": "Power 4"
+        "name": "Slot 4 - Power"
       },
       "sellTime5Pac": {
-        "name": "Power 5"
+        "name": "Slot 5 - Power"
       },
       "sellTime6Pac": {
-        "name": "Power 6"
+        "name": "Slot 6 - Power"
       },
       "cap1": {
-        "name": "Battery SOC 1"
+        "name": "Slot 1 - Battery SOC"
       },
       "cap2": {
-        "name": "Battery SOC 2"
+        "name": "Slot 2 - Battery SOC"
       },
       "cap3": {
-        "name": "Battery SOC 3"
+        "name": "Slot 3 - Battery SOC"
       },
       "cap4": {
-        "name": "Battery SOC 4"
+        "name": "Slot 4 - Battery SOC"
       },
       "cap5": {
-        "name": "Battery SOC 5"
+        "name": "Slot 5 - Battery SOC"
       },
       "cap6": {
-        "name": "Battery SOC 6"
+        "name": "Slot 6 - Battery SOC"
       }
     },
     "select": {
@@ -143,6 +143,24 @@
       },
       "energyMode": {
         "name": "Energy Pattern"
+      },
+      "time1mode": {
+        "name": "Slot 1 - Mode"
+      },
+      "time2mode": {
+        "name": "Slot 2 - Mode"
+      },
+      "time3mode": {
+        "name": "Slot 3 - Mode"
+      },
+      "time4mode": {
+        "name": "Slot 4 - Mode"
+      },
+      "time5mode": {
+        "name": "Slot 5 - Mode"
+      },
+      "time6mode": {
+        "name": "Slot 6 - Mode"
       }
     },
     "switch": {
@@ -151,24 +169,6 @@
       },
       "peakAndVallery": {
         "name": "Energy Pattern (Time Of Use)"
-      },
-      "time1mode": {
-        "name": "Time 1 Mode (Sell/Charge)"
-      },
-      "time2mode": {
-        "name": "Time 2 Mode (Sell/Charge)"
-      },
-      "time3mode": {
-        "name": "Time 3 Mode (Sell/Charge)"
-      },
-      "time4mode": {
-        "name": "Time 4 Mode (Sell/Charge)"
-      },
-      "time5mode": {
-        "name": "Time 5 Mode (Sell/Charge)"
-      },
-      "time6mode": {
-        "name": "Time 6 Mode (Sell/Charge)"
       },
       "mondayOn": {
         "name": "Time Of Use Monday"
@@ -194,22 +194,22 @@
     },
     "time": {
       "sellTime1": {
-        "name": "Time 1"
+        "name": "Slot 1 - Time"
       },
       "sellTime2": {
-        "name": "Time 2"
+        "name": "Slot 2 - Time"
       },
       "sellTime3": {
-        "name": "Time 3"
+        "name": "Slot 3 - Time"
       },
       "sellTime4": {
-        "name": "Time 4"
+        "name": "Slot 4 - Time"
       },
       "sellTime5": {
-        "name": "Time 5"
+        "name": "Slot 5 - Time"
       },
       "sellTime6": {
-        "name": "Time 6"
+        "name": "Slot 6 - Time"
       }
     }
   }

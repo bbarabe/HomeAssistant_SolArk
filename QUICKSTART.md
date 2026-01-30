@@ -72,7 +72,7 @@ disabled by default. To enable:
 2. Click **Configure**
 3. Toggle **Allow write access**
 
-Each time slot has a single Sell/Charge toggle (On = Sell, Off = Charge).
+Each time slot has a single Sell/Charge select (Sell or Charge).
 If you change multiple settings quickly, the integration keeps recent writes
 for ~30 seconds and clears them after a successful fetch (or once the server
 reflects them) so API lag does not revert a prior change.

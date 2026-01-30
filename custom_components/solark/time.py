@@ -22,7 +22,7 @@ class SolArkTimeDescription(TimeEntityDescription):
 
 
 TIME_DESCRIPTIONS: list[SolArkTimeDescription] = [
-    SolArkTimeDescription(key=f"sellTime{slot}", name=f"Time {slot}")
+    SolArkTimeDescription(key=f"sellTime{slot}", name=f"Slot {slot} - Time")
     for slot in range(1, 7)
 ]
 
