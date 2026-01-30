@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 - Updated Energy dashboard setup to use built-in battery energy sensors.
 - Updated sensor lists and counts in README and Quick Start.
+- Fixed options flow initialization for older Home Assistant versions.
 
 ## [5.1.0] - 2026-01-29
 
