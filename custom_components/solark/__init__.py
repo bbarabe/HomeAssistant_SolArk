@@ -146,10 +146,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             options[CONF_ALLOW_WRITE] = data.get(
                 CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE
             )
-        entry.version = 2
+        version = 2
 
-    hass.config_entries.async_update_entry(entry, data=data, options=options)
-    _LOGGER.info("Migrated SolArk config entry from v%s to v%s", version, entry.version)
+    hass.config_entries.async_update_entry(
+        entry, data=data, options=options, version=version
+    )
+    _LOGGER.info("Migrated SolArk config entry to v%s", version)
     return True
 
 
