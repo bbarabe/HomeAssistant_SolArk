@@ -52,6 +52,7 @@ After installation, you'll have 17 sensors monitoring your Sol-Ark system:
    - Password: (your Sol-Ark password)
    - Plant ID: (from Step 2)
    - Scan Interval: `30` (leave default)
+   - Allow Write Access: `false` (leave default)
 5. Click **SUBMIT**
 
 ### Step 4: Verify Sensors Work
@@ -60,6 +61,15 @@ After installation, you'll have 17 sensors monitoring your Sol-Ark system:
 2. Search for: `solark`
 3. You should see 17 sensors with live data
 4. If they show "unavailable", wait 30 seconds for first update
+
+### Optional: Enable Configuration Writes
+
+System Work Mode settings are exposed as Configuration entities but writes are
+disabled by default. To enable:
+
+1. **Settings** → **Devices & Services** → **SolArk Cloud**
+2. Click **Configure**
+3. Toggle **Allow write access**
 
 ### Optional: CLI Quick Test
 

@@ -20,9 +20,11 @@ from .const import (
     CONF_BASE_URL,
     CONF_API_URL,
     CONF_SCAN_INTERVAL,
+    CONF_ALLOW_WRITE,
     DEFAULT_BASE_URL,
     DEFAULT_API_URL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_ALLOW_WRITE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,6 +84,9 @@ class SolArkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_SCAN_INTERVAL: int(
                             user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
                         ),
+                        CONF_ALLOW_WRITE: bool(
+                            user_input.get(CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE)
+                        ),
                     },
                 )
 
@@ -95,6 +100,7 @@ class SolArkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_BASE_URL, default=DEFAULT_BASE_URL): str,
                 vol.Optional(CONF_API_URL, default=DEFAULT_API_URL): str,
                 vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+                vol.Optional(CONF_ALLOW_WRITE, default=DEFAULT_ALLOW_WRITE): bool,
             }
         )
 
@@ -136,6 +142,15 @@ class SolArkOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SCAN_INTERVAL,
                     default=current_interval,
                 ): int,
+                vol.Optional(
+                    CONF_ALLOW_WRITE,
+                    default=self._config_entry.options.get(
+                        CONF_ALLOW_WRITE,
+                        self._config_entry.data.get(
+                            CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE
+                        ),
+                    ),
+                ): bool,
             }
         )
 
