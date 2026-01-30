@@ -115,7 +115,9 @@ class SolArkOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle SolArk options (post-install settings)."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        super().__init__(config_entry)
+        # Store on the internal attribute to avoid assigning the read-only
+        # config_entry property.
+        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -123,9 +125,9 @@ class SolArkOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current_interval = self.config_entry.options.get(
+        current_interval = self._config_entry.options.get(
             CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
 
         options_schema = vol.Schema(
@@ -141,3 +143,6 @@ class SolArkOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=options_schema,
         )
+
+    def _get_config_entry(self) -> config_entries.ConfigEntry:
+        return self._config_entry
