@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Work Mode and Energy Pattern are now select entities with labeled options.
 - Added Time Of Use day-of-week switches.
 - Added Home Consumption Energy sensor (integrated from load power).
+- Added config entry migration to seed new options (allow write access).
 
 ### 📚 Documentation
 
