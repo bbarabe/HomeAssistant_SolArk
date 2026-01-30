@@ -153,6 +153,7 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
             )
         )
         if not allow_write:
+            await self._handle_write_blocked()
             raise HomeAssistantError("Write access is disabled for SolArk.")
 
         data = self.coordinator.data or {}
@@ -174,3 +175,8 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
             require_master=True,
         )
         await self.coordinator.async_request_refresh()
+
+    async def _handle_write_blocked(self) -> None:
+        """Force a refresh so the UI reverts to the current value."""
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
