@@ -1,7 +1,7 @@
 """SolArk sensors (high-value set using energy/flow)."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import inspect
 from typing import Any, Iterable
@@ -34,7 +34,7 @@ class SolArkSensorDescription(SensorEntityDescription):
 @dataclass
 class SolArkIntegratedEnergyDescription(SensorEntityDescription):
     key: str
-    source_key: str
+    source_key: str = field(default="")
 
 
 SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
