@@ -80,7 +80,7 @@ Settings updates:
 - `--slot-pac VALUE` - Sell power (PAC) for the slot
 - `--slot-volt VALUE` - Sell voltage for the slot
 - `--slot-cap VALUE` - Battery cap for the slot
-- `--slot-mode sell|charge` - Slot mode
+- `--slot-mode sell|charge` - Slot mode (sell enables Sell Time, charge enables Charge Time)
 - `--sys-work-mode VALUE` - System work mode value (e.g., 1 for sell)
 - `--allow-non-master` - Allow setting changes on non-master inverters
 
@@ -92,6 +92,9 @@ Settings updates:
 - `--settings` and `--set-slot` require `--inverter-sn`.
 - `--set-slot` requires `--inverter-sn` and `--slot`.
 - Output is printed as JSON with sorted keys inside section headers.
+- The client keeps recent setting writes for ~30 seconds and clears them after
+  a successful fetch (or once the server reflects them) so API lag does not
+  overwrite rapid back-to-back changes.
 
 ## Examples
 

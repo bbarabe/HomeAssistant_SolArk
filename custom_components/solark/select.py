@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timedelta
-import asyncio
 from typing import Any
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
@@ -13,7 +11,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
-from homeassistant.util import dt as dt_util
 
 from .const import CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE, DOMAIN
 
@@ -86,8 +83,6 @@ class SolArkSettingSelect(CoordinatorEntity, SelectEntity):
             "name": "SolArk",
             "manufacturer": "SolArk",
         }
-        self._pending_value: str | None = None
-        self._pending_until = None
 
     @property
     def current_option(self) -> str | None:
@@ -103,7 +98,7 @@ class SolArkSettingSelect(CoordinatorEntity, SelectEntity):
                 if mapped == current_value:
                     current = label
                     break
-        return self._apply_pending(current)
+        return current
 
     async def async_select_option(self, option: str) -> None:
         allow_write = bool(
@@ -128,31 +123,8 @@ class SolArkSettingSelect(CoordinatorEntity, SelectEntity):
             updates={self.entity_description.key: self.entity_description.options_map[option]},
             require_master=True,
         )
-        self._set_pending_value(option)
-        self.hass.async_create_task(self._refresh_after_delay())
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
-
-    def _set_pending_value(self, value: str) -> None:
-        self._pending_value = value
-        self._pending_until = dt_util.utcnow() + timedelta(seconds=30)
-
-    def _apply_pending(self, current: str | None) -> str | None:
-        if self._pending_value is None or self._pending_until is None:
-            return current
-        if dt_util.utcnow() > self._pending_until:
-            self._pending_value = None
-            self._pending_until = None
-            return current
-        if current == self._pending_value:
-            self._pending_value = None
-            self._pending_until = None
-            return current
-        return self._pending_value
-
-    async def _refresh_after_delay(self) -> None:
-        await asyncio.sleep(3)
-        await self.coordinator.async_request_refresh()
