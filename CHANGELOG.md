@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - Settings are fetched/written only against the master inverter.
 - Master inverter SN is cached in memory to reduce repeated lookups.
 - Options updates now reload the integration so write access toggles take effect.
+- Settings entities now optimistically show new values briefly and retry refresh
+  to handle API propagation delays.
 
 ### 📚 Documentation
 
