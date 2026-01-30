@@ -1,7 +1,7 @@
 """SolArk configuration select entities."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 import asyncio
 from typing import Any
@@ -21,7 +21,7 @@ from .const import CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE, DOMAIN
 @dataclass
 class SolArkSelectDescription(SelectEntityDescription):
     key: str
-    options_map: dict[str, int]
+    options_map: dict[str, int] = field(default_factory=dict)
 
 
 SELECT_DESCRIPTIONS: list[SolArkSelectDescription] = [
