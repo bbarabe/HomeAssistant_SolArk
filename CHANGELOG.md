@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.2.0] - 2026-01-30
+
+### ✨ Improvements
+
+- Added System Work Mode configuration entities (numbers, switches, time).
+- Added write-access toggle in the config flow (disabled by default).
+- Settings are fetched/written only against the master inverter.
+- Master inverter SN is cached in memory to reduce repeated lookups.
+
+### 📚 Documentation
+
+- Added configuration write-access guidance.
+
 ## [5.1.1] - 2026-01-30
 
 ### ✨ Improvements

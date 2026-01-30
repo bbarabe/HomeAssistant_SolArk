@@ -34,6 +34,7 @@ class SolArkCloudAPI:
         self.api_url = api_url.rstrip("/")
 
         self._session = session
+        self._master_sn: Optional[str] = None
         self._auth = SolArkAuth(
             username=username,
             password=password,
@@ -306,6 +307,79 @@ class SolArkCloudAPI:
         """Fetch common inverter settings via /api/v1/common/setting/{sn}/read."""
         await self._auth.ensure_token()
         return await self._request("GET", f"/api/v1/common/setting/{sn}/read")
+
+    async def get_master_common_settings(
+        self, force_refresh: bool = False
+    ) -> tuple[str, Dict[str, Any]]:
+        """Fetch common settings for the master inverter."""
+        if self._master_sn and not force_refresh:
+            settings_resp = await self.get_common_settings(self._master_sn)
+            settings_data = (
+                settings_resp.get("data")
+                if isinstance(settings_resp, dict)
+                else settings_resp
+            )
+            if isinstance(settings_data, dict) and settings_data.get("equipMode") == 1:
+                return self._master_sn, settings_data
+            self._master_sn = None
+
+        inv_resp = await self.get_inverters(plant_id=self.plant_id, limit=50)
+        inv_data = inv_resp.get("data") if isinstance(inv_resp, dict) else None
+        inverters = []
+        if isinstance(inv_data, dict):
+            inverters = (
+                inv_data.get("infos")
+                or inv_data.get("list")
+                or inv_data.get("records")
+                or []
+            )
+        if not inverters:
+            raise SolArkCloudAPIError("No inverters found for plant")
+
+        for inverter in inverters:
+            sn = inverter.get("sn") or inverter.get("deviceSn")
+            if not sn:
+                continue
+            settings_resp = await self.get_common_settings(sn)
+            settings_data = (
+                settings_resp.get("data")
+                if isinstance(settings_resp, dict)
+                else settings_resp
+            )
+            if not isinstance(settings_data, dict):
+                continue
+            if settings_data.get("equipMode") == 1:
+                self._master_sn = sn
+                return sn, settings_data
+
+        raise SolArkCloudAPIError("Master inverter not found (equipMode != 1)")
+
+    async def set_common_settings(
+        self,
+        sn: str,
+        updates: Dict[str, Any],
+        require_master: bool = True,
+    ) -> Dict[str, Any]:
+        """Update common inverter settings using /api/v1/common/setting/{sn}/set."""
+        settings_resp = await self.get_common_settings(sn)
+        settings_data = (
+            settings_resp.get("data")
+            if isinstance(settings_resp, dict)
+            else settings_resp
+        )
+        if not isinstance(settings_data, dict):
+            raise SolArkCloudAPIError("Invalid settings response")
+
+        if require_master:
+            equip_mode = settings_data.get("equipMode")
+            if equip_mode != 1:
+                raise SolArkCloudAPIError(
+                    f"Inverter {sn} is not master (equipMode={equip_mode})"
+                )
+
+        payload = self._build_common_setting_payload(sn, settings_data)
+        payload.update(updates)
+        return await self._request("POST", f"/api/v1/common/setting/{sn}/set", payload)
 
     async def set_system_work_mode_slot(
         self,
