@@ -19,6 +19,8 @@ All notable changes to this project will be documented in this file.
 - Added config entry migration to seed new options (allow write access).
 - Grid power entity ID is now normalized to `sensor.solark_grid_power` after
   re-adding the integration.
+- Settings polling now briefly accelerates after a write (about every 15
+  seconds for up to a minute) while pending changes exist.
 
 ### 📚 Documentation
 
