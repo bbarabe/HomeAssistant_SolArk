@@ -35,12 +35,8 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: DataUpdateCoordinator = data["settings_coordinator"]
     api = data["api"]
-    allow_write = bool(
-        entry.options.get(CONF_ALLOW_WRITE, entry.data.get(CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE))
-    )
-
     entities: list[SolArkSettingTime] = [
-        SolArkSettingTime(coordinator, entry, api, allow_write, desc)
+        SolArkSettingTime(coordinator, entry, api, desc)
         for desc in TIME_DESCRIPTIONS
     ]
     async_add_entities(entities, update_before_add=True)
@@ -56,13 +52,12 @@ class SolArkSettingTime(CoordinatorEntity, TimeEntity):
         coordinator: DataUpdateCoordinator,
         entry: ConfigEntry,
         api,
-        allow_write: bool,
         description: SolArkTimeDescription,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
         self._api = api
-        self._allow_write = allow_write
+        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_has_entity_name = True
         self._attr_entity_category = EntityCategory.CONFIG
@@ -89,7 +84,12 @@ class SolArkSettingTime(CoordinatorEntity, TimeEntity):
         return None
 
     async def async_set_value(self, value: dt_time) -> None:
-        if not self._allow_write:
+        allow_write = bool(
+            self.hass.data[DOMAIN][self._entry_id].get(
+                "allow_write_access", DEFAULT_ALLOW_WRITE
+            )
+        )
+        if not allow_write:
             raise HomeAssistantError("Write access is disabled for SolArk.")
 
         data = self.coordinator.data or {}
