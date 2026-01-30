@@ -158,6 +158,11 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
             updates={self.entity_description.key: payload_value},
             require_master=True,
         )
+        refresh_burst = self.hass.data[DOMAIN][self._entry_id].get(
+            "settings_refresh_burst"
+        )
+        if refresh_burst:
+            await refresh_burst()
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:

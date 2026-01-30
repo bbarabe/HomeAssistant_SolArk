@@ -135,10 +135,14 @@ class SolArkSettingSwitch(CoordinatorEntity, SwitchEntity):
             updates={self.entity_description.key: value},
             require_master=True,
         )
+        refresh_burst = self.hass.data[DOMAIN][self._entry_id].get(
+            "settings_refresh_burst"
+        )
+        if refresh_burst:
+            await refresh_burst()
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
         """Force a refresh so the UI reverts to the current value."""
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
-

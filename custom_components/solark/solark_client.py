@@ -827,3 +827,6 @@ class SolArkCloudAPI:
                 self._pending_setting_overrides.pop(key, None)
                 continue
             self._pending_setting_overrides[key] = (value, now)
+
+    def has_pending_settings(self) -> bool:
+        return bool(self._pending_setting_overrides)

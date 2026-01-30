@@ -76,6 +76,8 @@ Each time slot has a single Sell/Charge select (Sell or Charge).
 If you change multiple settings quickly, the integration keeps recent writes
 for ~30 seconds and clears them after a successful fetch (or once the server
 reflects them) so API lag does not revert a prior change.
+While pending changes exist, the settings poll accelerates (about every 15
+seconds for up to a minute) to pick up the server-side update sooner.
 
 ### Optional: CLI Quick Test
 

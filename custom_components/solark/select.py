@@ -143,6 +143,11 @@ class SolArkSettingSelect(CoordinatorEntity, SelectEntity):
             updates={self.entity_description.key: self.entity_description.options_map[option]},
             require_master=True,
         )
+        refresh_burst = self.hass.data[DOMAIN][self._entry_id].get(
+            "settings_refresh_burst"
+        )
+        if refresh_burst:
+            await refresh_burst()
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
@@ -221,6 +226,11 @@ class SolArkSlotModeSelect(CoordinatorEntity, SelectEntity):
             updates=updates,
             require_master=True,
         )
+        refresh_burst = self.hass.data[DOMAIN][self._entry_id].get(
+            "settings_refresh_burst"
+        )
+        if refresh_burst:
+            await refresh_burst()
         await self.coordinator.async_request_refresh()
 
     @staticmethod

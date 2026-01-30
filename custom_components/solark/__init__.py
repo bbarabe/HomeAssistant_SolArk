@@ -1,6 +1,7 @@
 """SolArk integration entry point."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any, TYPE_CHECKING
@@ -120,7 +121,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "settings_coordinator": settings_coordinator,
         "allow_write_access": allow_write_access,
+        "settings_refresh_task": None,
     }
+    hass.data[DOMAIN][entry.entry_id]["settings_refresh_burst"] = (
+        _build_settings_refresh_burst(hass, entry.entry_id)
+    )
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -160,3 +165,28 @@ async def _async_update_listener(
 ) -> None:
     """Handle options updates."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _build_settings_refresh_burst(hass: HomeAssistant, entry_id: str):
+    async def _async_settings_refresh_burst() -> None:
+        data = hass.data[DOMAIN].get(entry_id)
+        if not data:
+            return
+        task = data.get("settings_refresh_task")
+        if task and not task.done():
+            return
+
+        async def _runner() -> None:
+            api = data.get("api")
+            settings_coordinator = data.get("settings_coordinator")
+            if not api or not settings_coordinator:
+                return
+            for _ in range(4):
+                await settings_coordinator.async_request_refresh()
+                if not api.has_pending_settings():
+                    break
+                await asyncio.sleep(15)
+
+        data["settings_refresh_task"] = hass.async_create_task(_runner())
+
+    return _async_settings_refresh_burst

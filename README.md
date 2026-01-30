@@ -111,6 +111,8 @@ both fields together. When you change multiple settings quickly, the
 integration temporarily remembers recent writes (about 30 seconds) and
 clears them after a successful fetch (or once the server reflects them) so
 API lag does not overwrite your last change.
+After a write, the settings coordinator also polls more frequently (about
+every 15 seconds for up to a minute) while pending changes exist.
 
 ## 🧪 CLI Testing (Optional)
 
