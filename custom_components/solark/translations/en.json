@@ -152,41 +152,23 @@
       "peakAndVallery": {
         "name": "Energy Pattern (Time Of Use)"
       },
-      "time1on": {
-        "name": "Sell Time 1 Enabled"
+      "time1mode": {
+        "name": "Time 1 Mode (Sell/Charge)"
       },
-      "time2on": {
-        "name": "Sell Time 2 Enabled"
+      "time2mode": {
+        "name": "Time 2 Mode (Sell/Charge)"
       },
-      "time3on": {
-        "name": "Sell Time 3 Enabled"
+      "time3mode": {
+        "name": "Time 3 Mode (Sell/Charge)"
       },
-      "time4on": {
-        "name": "Sell Time 4 Enabled"
+      "time4mode": {
+        "name": "Time 4 Mode (Sell/Charge)"
       },
-      "time5on": {
-        "name": "Sell Time 5 Enabled"
+      "time5mode": {
+        "name": "Time 5 Mode (Sell/Charge)"
       },
-      "time6on": {
-        "name": "Sell Time 6 Enabled"
-      },
-      "genTime1on": {
-        "name": "Charge Time 1 Enabled"
-      },
-      "genTime2on": {
-        "name": "Charge Time 2 Enabled"
-      },
-      "genTime3on": {
-        "name": "Charge Time 3 Enabled"
-      },
-      "genTime4on": {
-        "name": "Charge Time 4 Enabled"
-      },
-      "genTime5on": {
-        "name": "Charge Time 5 Enabled"
-      },
-      "genTime6on": {
-        "name": "Charge Time 6 Enabled"
+      "time6mode": {
+        "name": "Time 6 Mode (Sell/Charge)"
       },
       "mondayOn": {
         "name": "Time Of Use Monday"

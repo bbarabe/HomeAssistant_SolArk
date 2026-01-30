@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
-import asyncio
 from typing import Any
 
 from homeassistant.components.number import (
@@ -17,7 +15,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
-from homeassistant.util import dt as dt_util
 
 from .const import CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE, DOMAIN
 
@@ -121,8 +118,6 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
             "name": "SolArk",
             "manufacturer": "SolArk",
         }
-        self._pending_value: float | None = None
-        self._pending_until = None
 
     @property
     def native_value(self) -> float | None:
@@ -131,10 +126,9 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
         if value is None:
             return None
         try:
-            current = float(value)
+            return float(value)
         except (TypeError, ValueError):
-            current = None
-        return self._apply_pending(current)
+            return None
 
     async def async_set_native_value(self, value: float) -> None:
         allow_write = bool(
@@ -164,32 +158,9 @@ class SolArkSettingNumber(CoordinatorEntity, NumberEntity):
             updates={self.entity_description.key: payload_value},
             require_master=True,
         )
-        self._set_pending_value(float(value))
-        self.hass.async_create_task(self._refresh_after_delay())
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
         """Force a refresh so the UI reverts to the current value."""
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
-
-    def _set_pending_value(self, value: float) -> None:
-        self._pending_value = value
-        self._pending_until = dt_util.utcnow() + timedelta(seconds=30)
-
-    def _apply_pending(self, current: float | None) -> float | None:
-        if self._pending_value is None or self._pending_until is None:
-            return current
-        if dt_util.utcnow() > self._pending_until:
-            self._pending_value = None
-            self._pending_until = None
-            return current
-        if current is not None and abs(current - self._pending_value) < 0.001:
-            self._pending_value = None
-            self._pending_until = None
-            return current
-        return self._pending_value
-
-    async def _refresh_after_delay(self) -> None:
-        await asyncio.sleep(3)
-        await self.coordinator.async_request_refresh()

@@ -35,6 +35,8 @@ class SolArkCloudAPI:
 
         self._session = session
         self._master_sn: Optional[str] = None
+        self._pending_setting_overrides: Dict[str, tuple[Any, datetime]] = {}
+        self._pending_setting_ttl_seconds = 30
         self._auth = SolArkAuth(
             username=username,
             password=password,
@@ -306,7 +308,8 @@ class SolArkCloudAPI:
     async def get_common_settings(self, sn: str) -> Dict[str, Any]:
         """Fetch common inverter settings via /api/v1/common/setting/{sn}/read."""
         await self._auth.ensure_token()
-        return await self._request("GET", f"/api/v1/common/setting/{sn}/read")
+        response = await self._request("GET", f"/api/v1/common/setting/{sn}/read")
+        return self._apply_pending_settings_to_response(response)
 
     async def get_master_common_settings(
         self, force_refresh: bool = False
@@ -379,7 +382,11 @@ class SolArkCloudAPI:
 
         payload = self._build_common_setting_payload(sn, settings_data)
         payload.update(updates)
-        return await self._request("POST", f"/api/v1/common/setting/{sn}/set", payload)
+        result = await self._request(
+            "POST", f"/api/v1/common/setting/{sn}/set", payload
+        )
+        self._record_pending_settings(updates, settings_data)
+        return result
 
     async def set_system_work_mode_slot(
         self,
@@ -417,30 +424,44 @@ class SolArkCloudAPI:
 
         payload = self._build_common_setting_payload(sn, settings_data)
 
+        updates: Dict[str, Any] = {}
         if sys_work_mode is not None:
             payload["sysWorkMode"] = sys_work_mode
+            updates["sysWorkMode"] = sys_work_mode
         if sell_time is not None:
             payload[f"sellTime{slot}"] = sell_time
+            updates[f"sellTime{slot}"] = sell_time
         if sell_pac is not None:
             payload[f"sellTime{slot}Pac"] = sell_pac
+            updates[f"sellTime{slot}Pac"] = sell_pac
         if sell_volt is not None:
             payload[f"sellTime{slot}Volt"] = sell_volt
+            updates[f"sellTime{slot}Volt"] = sell_volt
         if cap is not None:
             payload[f"cap{slot}"] = cap
+            updates[f"cap{slot}"] = cap
         if enabled is not None:
             payload[f"time{slot}on"] = enabled
+            updates[f"time{slot}on"] = enabled
         if gen_enabled is not None:
             payload[f"genTime{slot}on"] = gen_enabled
+            updates[f"genTime{slot}on"] = gen_enabled
         if slot_mode is not None:
-            # Map mode to sell/charge toggles (matches UI payload behavior).
-            enabled = slot_mode in (1, 3)
-            gen_enabled = slot_mode in (2, 3)
+            # Map mode to sell/charge toggles (SolArk API uses timeXon for charge,
+            # genTimeXon for sell).
+            enabled = slot_mode in (2, 3)
+            gen_enabled = slot_mode in (1, 3)
             payload[f"time{slot}on"] = enabled
             payload[f"genTime{slot}on"] = gen_enabled
+            updates[f"time{slot}on"] = enabled
+            updates[f"genTime{slot}on"] = gen_enabled
 
-        return await self._request(
+        result = await self._request(
             "POST", f"/api/v1/common/setting/{sn}/set", payload
         )
+        if updates:
+            self._record_pending_settings(updates, settings_data)
+        return result
 
     async def get_flow_data(self) -> Dict[str, Any]:
         """Fetch plant power flow data (pv, batt, grid, load, soc)."""
@@ -757,3 +778,52 @@ class SolArkCloudAPI:
             if value is not None:
                 payload[key] = value
         return payload
+
+    def _apply_pending_settings_to_response(
+        self, response: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if not isinstance(response, dict):
+            return response
+
+        settings_data = response.get("data")
+        if not isinstance(settings_data, dict):
+            return response
+
+        merged = self._merge_pending_settings(settings_data, prune_on_success=True)
+        if merged is settings_data:
+            return response
+        updated = dict(response)
+        updated["data"] = merged
+        return updated
+
+    def _merge_pending_settings(
+        self, settings_data: Dict[str, Any], prune_on_success: bool
+    ) -> Dict[str, Any]:
+        if not self._pending_setting_overrides:
+            return settings_data
+
+        now = datetime.utcnow()
+        merged = dict(settings_data)
+        for key, (value, timestamp) in list(self._pending_setting_overrides.items()):
+            expired = (
+                (now - timestamp).total_seconds() > self._pending_setting_ttl_seconds
+            )
+            if prune_on_success and expired:
+                self._pending_setting_overrides.pop(key, None)
+                continue
+            if settings_data.get(key) == value:
+                if prune_on_success:
+                    self._pending_setting_overrides.pop(key, None)
+                continue
+            merged[key] = value
+        return merged
+
+    def _record_pending_settings(
+        self, updates: Dict[str, Any], settings_data: Dict[str, Any]
+    ) -> None:
+        now = datetime.utcnow()
+        for key, value in updates.items():
+            if settings_data.get(key) == value:
+                self._pending_setting_overrides.pop(key, None)
+                continue
+            self._pending_setting_overrides[key] = (value, now)

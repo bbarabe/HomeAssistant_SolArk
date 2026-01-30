@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
-import asyncio
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
@@ -13,7 +11,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
-from homeassistant.util import dt as dt_util
 
 from .const import CONF_ALLOW_WRITE, DEFAULT_ALLOW_WRITE, DOMAIN
 
@@ -23,6 +20,12 @@ class SolArkSwitchDescription(SwitchEntityDescription):
     key: str
     on_value: Any = True
     off_value: Any = False
+
+
+@dataclass
+class SolArkSlotModeDescription(SwitchEntityDescription):
+    key: str
+    slot: int = 0
 
 
 SWITCH_DESCRIPTIONS: list[SolArkSwitchDescription] = [
@@ -40,21 +43,13 @@ SWITCH_DESCRIPTIONS: list[SolArkSwitchDescription] = [
     ),
 ]
 
+SLOT_MODE_DESCRIPTIONS: list[SolArkSlotModeDescription] = []
 for slot in range(1, 7):
-    SWITCH_DESCRIPTIONS.append(
-        SolArkSwitchDescription(
-            key=f"time{slot}on",
-            name=f"Sell Time {slot} Enabled",
-            on_value=True,
-            off_value=False,
-        )
-    )
-    SWITCH_DESCRIPTIONS.append(
-        SolArkSwitchDescription(
-            key=f"genTime{slot}on",
-            name=f"Charge Time {slot} Enabled",
-            on_value=True,
-            off_value=False,
+    SLOT_MODE_DESCRIPTIONS.append(
+        SolArkSlotModeDescription(
+            key=f"time{slot}mode",
+            name=f"Time {slot} Mode (Sell/Charge)",
+            slot=slot,
         )
     )
 
@@ -85,10 +80,14 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: DataUpdateCoordinator = data["settings_coordinator"]
     api = data["api"]
-    entities: list[SolArkSettingSwitch] = [
+    entities: list[SwitchEntity] = [
         SolArkSettingSwitch(coordinator, entry, api, desc)
         for desc in SWITCH_DESCRIPTIONS
     ]
+    entities.extend(
+        SolArkSlotModeSwitch(coordinator, entry, api, desc)
+        for desc in SLOT_MODE_DESCRIPTIONS
+    )
     async_add_entities(entities, update_before_add=True)
 
 
@@ -116,8 +115,6 @@ class SolArkSettingSwitch(CoordinatorEntity, SwitchEntity):
             "name": "SolArk",
             "manufacturer": "SolArk",
         }
-        self._pending_value: bool | None = None
-        self._pending_until = None
 
     @property
     def is_on(self) -> bool | None:
@@ -126,12 +123,11 @@ class SolArkSettingSwitch(CoordinatorEntity, SwitchEntity):
         if value is None:
             return None
         if value == self.entity_description.on_value:
-            current = True
+            return True
         elif value == self.entity_description.off_value:
-            current = False
+            return False
         else:
-            current = bool(value)
-        return self._apply_pending(current)
+            return bool(value)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set_value(self.entity_description.on_value)
@@ -159,8 +155,6 @@ class SolArkSettingSwitch(CoordinatorEntity, SwitchEntity):
             updates={self.entity_description.key: value},
             require_master=True,
         )
-        self._set_pending_value(value == self.entity_description.on_value)
-        self.hass.async_create_task(self._refresh_after_delay())
         await self.coordinator.async_request_refresh()
 
     async def _handle_write_blocked(self) -> None:
@@ -168,23 +162,93 @@ class SolArkSettingSwitch(CoordinatorEntity, SwitchEntity):
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()
 
-    def _set_pending_value(self, value: bool) -> None:
-        self._pending_value = value
-        self._pending_until = dt_util.utcnow() + timedelta(seconds=30)
 
-    def _apply_pending(self, current: bool | None) -> bool | None:
-        if self._pending_value is None or self._pending_until is None:
-            return current
-        if dt_util.utcnow() > self._pending_until:
-            self._pending_value = None
-            self._pending_until = None
-            return current
-        if current == self._pending_value:
-            self._pending_value = None
-            self._pending_until = None
-            return current
-        return self._pending_value
+class SolArkSlotModeSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch entity for per-slot sell/charge mode."""
 
-    async def _refresh_after_delay(self) -> None:
-        await asyncio.sleep(3)
+    entity_description: SolArkSlotModeDescription
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        entry: ConfigEntry,
+        api,
+        description: SolArkSlotModeDescription,
+    ) -> None:
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._api = api
+        self._entry_id = entry.entry_id
+        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_has_entity_name = True
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "SolArk",
+            "manufacturer": "SolArk",
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        settings = (self.coordinator.data or {}).get("settings") or {}
+        slot = self.entity_description.slot
+        sell_value = settings.get(f"genTime{slot}on")
+        charge_value = settings.get(f"time{slot}on")
+        return self._derive_mode(sell_value, charge_value)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._async_set_mode(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._async_set_mode(False)
+
+    async def _async_set_mode(self, sell_mode: bool) -> None:
+        allow_write = bool(
+            self.hass.data[DOMAIN][self._entry_id].get(
+                "allow_write_access", DEFAULT_ALLOW_WRITE
+            )
+        )
+        if not allow_write:
+            await self._handle_write_blocked()
+            raise HomeAssistantError("Write access is disabled for SolArk.")
+
+        data = self.coordinator.data or {}
+        sn = data.get("sn")
+        if not sn:
+            raise HomeAssistantError("Master inverter not available.")
+
+        slot = self.entity_description.slot
+        updates = {
+            f"genTime{slot}on": sell_mode,
+            f"time{slot}on": not sell_mode,
+        }
+        await self._api.set_common_settings(
+            sn=sn,
+            updates=updates,
+            require_master=True,
+        )
         await self.coordinator.async_request_refresh()
+
+    def _derive_mode(self, sell_value: Any, charge_value: Any) -> bool | None:
+        if sell_value is None or charge_value is None:
+            return None
+        sell_on = self._coerce_bool(sell_value)
+        charge_on = self._coerce_bool(charge_value)
+        if sell_on and not charge_on:
+            return True
+        if charge_on and not sell_on:
+            return False
+        return None
+
+    @staticmethod
+    def _coerce_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        try:
+            return bool(int(value))
+        except (TypeError, ValueError):
+            return bool(value)
+
+    async def _handle_write_blocked(self) -> None:
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
