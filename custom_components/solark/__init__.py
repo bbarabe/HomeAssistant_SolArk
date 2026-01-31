@@ -80,6 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api_url=api_url,
         session=session,
     )
+    await api.prime_inverters_cache()
 
     async def async_update_data() -> dict[str, Any]:
         """Fetch and parse data from SolArk."""

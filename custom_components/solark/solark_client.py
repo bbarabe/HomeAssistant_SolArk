@@ -37,6 +37,8 @@ class SolArkCloudAPI:
         self._master_sn: Optional[str] = None
         self._pending_setting_overrides: Dict[str, tuple[Any, datetime]] = {}
         self._pending_setting_ttl_seconds = 30
+        self._inverters_cache: Optional[list[dict[str, Any]]] = None
+        self._inverters_cache_lock = asyncio.Lock()
         self._auth = SolArkAuth(
             username=username,
             password=password,
@@ -55,6 +57,50 @@ class SolArkCloudAPI:
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+
+    async def prime_inverters_cache(self) -> None:
+        """Fetch and cache inverter list once at startup."""
+        await self._get_cached_inverters()
+
+    async def _get_cached_inverters(self) -> list[dict[str, Any]]:
+        if self._inverters_cache is not None:
+            return self._inverters_cache
+
+        async with self._inverters_cache_lock:
+            if self._inverters_cache is not None:
+                return self._inverters_cache
+
+            inv_params = {
+                "page": 1,
+                "limit": 50,
+                "stationId": self.plant_id,
+                "status": -1,
+                "sn": "",
+                "type": -2,
+            }
+            _LOGGER.debug(
+                "Requesting inverter list for cache with params=%s", inv_params
+            )
+            inv_resp = await self._request(
+                "GET",
+                f"/api/v1/plant/{self.plant_id}/inverters",
+                inv_params,
+            )
+            inv_data = inv_resp.get("data") if isinstance(inv_resp, dict) else None
+            inverters = []
+            if isinstance(inv_data, dict):
+                inverters = (
+                    inv_data.get("infos")
+                    or inv_data.get("list")
+                    or inv_data.get("records")
+                    or []
+                )
+
+            self._inverters_cache = inverters
+            _LOGGER.debug(
+                "Cached inverter list length: %s", len(self._inverters_cache)
+            )
+            return self._inverters_cache
 
     async def _request(
         self,
@@ -144,31 +190,8 @@ class SolArkCloudAPI:
     async def get_inverter_live_data(self) -> Dict[str, Any]:
         """Fetch live inverter data via dy/store/{sn}/read."""
         await self._auth.ensure_token()
-        _LOGGER.debug("Getting inverter list for plant_id=%s", self.plant_id)
-
-        inv_params = {
-            "page": 1,
-            "limit": 10,
-            "stationId": self.plant_id,
-            "status": -1,
-            "sn": "",
-            "type": -2,
-        }
-        _LOGGER.debug("Requesting inverter list with params=%s", inv_params)
-        inv_resp = await self._request(
-            "GET",
-            f"/api/v1/plant/{self.plant_id}/inverters",
-            inv_params,
-        )
-        _LOGGER.debug("Raw inverter response: %s", inv_resp)
-
-        inv_data = inv_resp.get("data") or {}
-        inverters = (
-            inv_data.get("infos")
-            or inv_data.get("list")
-            or inv_data.get("records")
-            or []
-        )
+        _LOGGER.debug("Using cached inverter list for plant_id=%s", self.plant_id)
+        inverters = await self._get_cached_inverters()
         _LOGGER.debug("Parsed inverters list length: %s", len(inverters))
 
         if not inverters:
@@ -314,7 +337,12 @@ class SolArkCloudAPI:
     async def get_master_common_settings(
         self, force_refresh: bool = False
     ) -> tuple[str, Dict[str, Any]]:
-        """Fetch common settings for the master inverter."""
+        """Fetch common settings for the master inverter.
+
+        If a plant only has a single inverter and it is not marked as master,
+        fall back to that inverter so settings can still be read.
+        """
+        cached_candidate: tuple[str, Dict[str, Any]] | None = None
         if self._master_sn and not force_refresh:
             settings_resp = await self.get_common_settings(self._master_sn)
             settings_data = (
@@ -322,27 +350,24 @@ class SolArkCloudAPI:
                 if isinstance(settings_resp, dict)
                 else settings_resp
             )
-            if isinstance(settings_data, dict) and settings_data.get("equipMode") == 1:
-                return self._master_sn, settings_data
+            if isinstance(settings_data, dict):
+                if settings_data.get("equipMode") == 1:
+                    return self._master_sn, settings_data
+                cached_candidate = (self._master_sn, settings_data)
             self._master_sn = None
 
-        inv_resp = await self.get_inverters(plant_id=self.plant_id, limit=50)
-        inv_data = inv_resp.get("data") if isinstance(inv_resp, dict) else None
-        inverters = []
-        if isinstance(inv_data, dict):
-            inverters = (
-                inv_data.get("infos")
-                or inv_data.get("list")
-                or inv_data.get("records")
-                or []
-            )
+        inverters = await self._get_cached_inverters()
         if not inverters:
             raise SolArkCloudAPIError("No inverters found for plant")
+
+        valid_sns: list[str] = []
+        fallback_candidate: tuple[str, Dict[str, Any]] | None = cached_candidate
 
         for inverter in inverters:
             sn = inverter.get("sn") or inverter.get("deviceSn")
             if not sn:
                 continue
+            valid_sns.append(sn)
             settings_resp = await self.get_common_settings(sn)
             settings_data = (
                 settings_resp.get("data")
@@ -354,6 +379,17 @@ class SolArkCloudAPI:
             if settings_data.get("equipMode") == 1:
                 self._master_sn = sn
                 return sn, settings_data
+            if fallback_candidate is None:
+                fallback_candidate = (sn, settings_data)
+
+        if len(valid_sns) == 1 and fallback_candidate is not None:
+            sn, settings_data = fallback_candidate
+            self._master_sn = sn
+            _LOGGER.warning(
+                "Master inverter not found (equipMode != 1); using sole inverter %s for settings",
+                sn,
+            )
+            return sn, settings_data
 
         raise SolArkCloudAPIError("Master inverter not found (equipMode != 1)")
 
@@ -376,9 +412,10 @@ class SolArkCloudAPI:
         if require_master:
             equip_mode = settings_data.get("equipMode")
             if equip_mode != 1:
-                raise SolArkCloudAPIError(
-                    f"Inverter {sn} is not master (equipMode={equip_mode})"
-                )
+                if not await self._allow_single_inverter_write(sn):
+                    raise SolArkCloudAPIError(
+                        f"Inverter {sn} is not master (equipMode={equip_mode})"
+                    )
 
         payload = self._build_common_setting_payload(sn, settings_data)
         payload.update(updates)
@@ -418,9 +455,10 @@ class SolArkCloudAPI:
         if require_master:
             equip_mode = settings_data.get("equipMode")
             if equip_mode != 1:
-                raise SolArkCloudAPIError(
-                    f"Inverter {sn} is not master (equipMode={equip_mode})"
-                )
+                if not await self._allow_single_inverter_write(sn):
+                    raise SolArkCloudAPIError(
+                        f"Inverter {sn} is not master (equipMode={equip_mode})"
+                    )
 
         payload = self._build_common_setting_payload(sn, settings_data)
 
@@ -462,6 +500,24 @@ class SolArkCloudAPI:
         if updates:
             self._record_pending_settings(updates, settings_data)
         return result
+
+    async def _allow_single_inverter_write(self, sn: str) -> bool:
+        """Allow writes when the plant only has a single inverter."""
+        inverters = await self._get_cached_inverters()
+        if not inverters:
+            return False
+
+        valid_sns = [inv.get("sn") or inv.get("deviceSn") for inv in inverters]
+        valid_sns = [inv_sn for inv_sn in valid_sns if inv_sn]
+
+        if len(inverters) == 1 and len(valid_sns) == 1 and valid_sns[0] == sn:
+            _LOGGER.warning(
+                "Allowing write to sole inverter %s despite equipMode != 1",
+                sn,
+            )
+            return True
+
+        return False
 
     async def get_flow_data(self) -> Dict[str, Any]:
         """Fetch plant power flow data (pv, batt, grid, load, soc)."""
