@@ -390,16 +390,30 @@ async def async_setup_entry(
         async_add_entities(energy_entities, update_before_add=True)
 
     # Add configuration sensors (read-only, from settings coordinator)
-    config_entities: list[SensorEntity] = [
-        SolArkConfigSensor(settings_coordinator, entry, desc)
-        for desc in CONFIG_SENSOR_DESCRIPTIONS
-    ]
+    _LOGGER.debug(
+        "Creating %d config sensors with settings_coordinator data: %s",
+        len(CONFIG_SENSOR_DESCRIPTIONS),
+        settings_coordinator.data,
+    )
+    config_entities: list[SensorEntity] = []
+    for desc in CONFIG_SENSOR_DESCRIPTIONS:
+        try:
+            config_entities.append(
+                SolArkConfigSensor(settings_coordinator, entry, desc)
+            )
+        except Exception as err:
+            _LOGGER.error("Failed to create config sensor %s: %s", desc.key, err)
     # Add slot mode sensors (computed from two API fields)
     for slot, key in SLOT_MODE_SENSORS:
-        config_entities.append(
-            SolArkSlotModeConfigSensor(settings_coordinator, entry, slot, key)
-        )
+        try:
+            config_entities.append(
+                SolArkSlotModeConfigSensor(settings_coordinator, entry, slot, key)
+            )
+        except Exception as err:
+            _LOGGER.error("Failed to create slot mode sensor %s: %s", key, err)
+    _LOGGER.debug("Adding %d config entities", len(config_entities))
     async_add_entities(config_entities, update_before_add=True)
+    _LOGGER.debug("Config entities added successfully")
 
     hass.async_create_task(_async_fix_grid_power_entity_id(hass, entry))
 
