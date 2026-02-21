@@ -200,6 +200,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate config entries to the latest version."""
+    from homeassistant.helpers import entity_registry as er
+
     version = entry.version
     data = dict(entry.data)
     options = dict(entry.options)
@@ -214,7 +216,58 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if version < 3:
         # v3: Removed number/switch/select/time platforms, replaced with
         # read-only config sensors + configure_inverter service.
-        # No data migration needed, just bump version.
+        # Clean up orphaned entities from old platforms.
+        ent_reg = er.async_get(hass)
+
+        # Old unique_id patterns that need cleanup
+        old_unique_ids = [
+            # Number entities
+            f"{entry.entry_id}_solarMaxSellPower",
+            f"{entry.entry_id}_zeroExportPower",
+            f"{entry.entry_id}_pvMaxLimit",
+            # Switch entities
+            f"{entry.entry_id}_solarSell",
+            f"{entry.entry_id}_peakAndVallery",
+            f"{entry.entry_id}_mondayOn",
+            f"{entry.entry_id}_tuesdayOn",
+            f"{entry.entry_id}_wednesdayOn",
+            f"{entry.entry_id}_thursdayOn",
+            f"{entry.entry_id}_fridayOn",
+            f"{entry.entry_id}_saturdayOn",
+            f"{entry.entry_id}_sundayOn",
+            # Select entities
+            f"{entry.entry_id}_sysWorkMode",
+            f"{entry.entry_id}_energyMode",
+        ]
+        # Add slot-based entities (1-6)
+        for i in range(1, 7):
+            old_unique_ids.extend([
+                f"{entry.entry_id}_sellTime{i}Pac",  # Number: slot power
+                f"{entry.entry_id}_cap{i}",  # Number: slot SOC
+                f"{entry.entry_id}_sellTime{i}",  # Time: slot time
+                f"{entry.entry_id}_time{i}mode",  # Select: slot mode
+            ])
+
+        removed_count = 0
+        for unique_id in old_unique_ids:
+            entity_id = ent_reg.async_get_entity_id(
+                "number", DOMAIN, unique_id
+            ) or ent_reg.async_get_entity_id(
+                "switch", DOMAIN, unique_id
+            ) or ent_reg.async_get_entity_id(
+                "select", DOMAIN, unique_id
+            ) or ent_reg.async_get_entity_id(
+                "time", DOMAIN, unique_id
+            )
+            if entity_id:
+                ent_reg.async_remove(entity_id)
+                removed_count += 1
+                _LOGGER.debug("Removed orphaned entity: %s", entity_id)
+
+        if removed_count:
+            _LOGGER.info(
+                "Cleaned up %d orphaned entities from old platforms", removed_count
+            )
         version = 3
 
     hass.config_entries.async_update_entry(
