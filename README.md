@@ -36,6 +36,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 | `sensor.solark_home_consumption_energy` | Home consumption energy | kWh | ✅ Direct use |
 | `sensor.solark_grid_status` | Grid status | - | Status |
 | `sensor.solark_generator_status` | Generator status | - | Status |
+| `sensor.solark_ac_relay_status` | AC relay status (grid connection) | - | Status |
 | `sensor.solark_energy_today` | Daily production | kWh | ✅ Direct use |
 | `sensor.solark_energy_total` | Lifetime production | kWh | ✅ Solar production |
 

@@ -70,6 +70,8 @@ Data fetch actions:
 - `--parsed` - Parse combined plant data into sensor values
 - `--gateways` - Fetch gateways list
 - `--settings` - Fetch common settings for an inverter
+- `--workdata` - Fetch dynamic workdata for an inverter (requires `--inverter-sn`)
+- `--workdata-fields FIELDS` - Comma-separated list of fields for workdata (optional)
 
 Settings updates:
 
@@ -89,7 +91,7 @@ Settings updates:
 - `--live` without `--inverter-sn` fetches the plant inverter list and uses
   the first inverter found.
 - `--flow`, `--combined`, and `--parsed` require a valid `plant_id`.
-- `--settings` and `--set-slot` require `--inverter-sn`.
+- `--settings`, `--set-slot`, and `--workdata` require `--inverter-sn`.
 - `--set-slot` requires `--inverter-sn` and `--slot`.
 - Output is printed as JSON with sorted keys inside section headers.
 - The client keeps recent setting writes for ~30 seconds and clears them after

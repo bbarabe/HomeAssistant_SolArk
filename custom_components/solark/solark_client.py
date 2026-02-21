@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 
@@ -548,43 +548,184 @@ class SolArkCloudAPI:
             return flow_resp
         return {}
 
+    async def get_workdata(
+        self,
+        sn: str,
+        fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Fetch dynamic workdata for an inverter.
+
+        This endpoint is on the web app server (solarkcloud.com), not the API
+        server, so we make a direct request with authentication headers.
+
+        Args:
+            sn: Inverter serial number.
+            fields: Optional list of field names to fetch. If None, fetches all.
+
+        Returns:
+            Dictionary with field names as keys and values.
+        """
+        await self._auth.ensure_token()
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        params: Dict[str, Any] = {
+            "sn": sn,
+            "page": 1,
+            "limit": 1,
+            "dateRange": f"{today},{today}",
+            "type": 1,
+            "lan": "en",
+            "sgip": "false",
+        }
+        if fields:
+            params["fields"] = ",".join(fields)
+
+        url = "https://api.solarkcloud.com/api/v1/workdata/dynamic"
+        headers = self._auth.get_headers(strict=True)
+        _LOGGER.debug("Requesting workdata for sn=%s fields=%s", sn, fields)
+
+        try:
+            async with self._session.get(
+                url,
+                headers=headers,
+                params=params,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                text = await resp.text()
+                _LOGGER.debug(
+                    "Workdata response HTTP %s, body: %s",
+                    resp.status,
+                    text[:1000],
+                )
+                try:
+                    resp.raise_for_status()
+                except aiohttp.ClientResponseError as exc:
+                    raise SolArkCloudAPIError(
+                        f"HTTP {resp.status} for workdata: {text[:500]}"
+                    ) from exc
+
+                try:
+                    result = await resp.json()
+                except Exception as exc:  # noqa: BLE001
+                    raise SolArkCloudAPIError(
+                        f"Invalid JSON response from workdata: {text[:200]}"
+                    ) from exc
+
+        except asyncio.TimeoutError as exc:
+            raise SolArkCloudAPIError("Timeout for workdata") from exc
+        except aiohttp.ClientError as exc:
+            raise SolArkCloudAPIError(f"Client error for workdata: {exc}") from exc
+
+        _LOGGER.debug("Raw workdata response: %s", result)
+        if isinstance(result, dict):
+            code = result.get("code")
+            if code not in (0, "0", None):
+                msg = result.get("msg", "Unknown error")
+                _LOGGER.warning("Workdata API error: %s (code=%s)", msg, code)
+                return {}
+            data = result.get("data")
+            if isinstance(data, dict):
+                return data
+            return result
+        return {}
+
     async def get_plant_data(
         self,
-        live_data: Optional[Dict[str, Any]] = None,
         flow_data: Optional[Dict[str, Any]] = None,
+        workdata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Fetch combined plant data: inverter live + power flow."""
-        # Start with inverter live data
-        if live_data is None:
-            live_data = await self.get_inverter_live_data()
+        """Fetch combined plant data: flow data + workdata from master inverter."""
+        combined: Dict[str, Any] = {}
 
-        # Then overlay flow data (pvPower, battPower, gridOrMeterPower, loadOrEpsPower, soc)
+        # Fetch flow data (plant-level aggregates)
         try:
             if flow_data is None:
                 flow_data = await self.get_flow_data()
             if flow_data:
                 _LOGGER.debug(
-                    "Merging flow_data keys into live_data: %s", list(flow_data.keys())
+                    "Adding flow_data keys: %s", list(flow_data.keys())
                 )
-                for key, value in flow_data.items():
-                    if key in (
-                        "pvPower",
-                        "battPower",
-                        "gridOrMeterPower",
-                        "loadOrEpsPower",
-                        "soc",
-                        "gridTo",
-                        "toGrid",
-                        "toBat",
-                        "batTo",
-                        "existsMeter",
-                        "genOn",
-                    ):
-                        live_data[key] = value
+                for key in (
+                    "pvPower",
+                    "battPower",
+                    "gridOrMeterPower",
+                    "loadOrEpsPower",
+                    "soc",
+                    "gridTo",
+                    "toGrid",
+                    "toBat",
+                    "batTo",
+                    "existsMeter",
+                    "genOn",
+                ):
+                    if key in flow_data:
+                        combined[key] = flow_data[key]
         except Exception as exc:  # noqa: BLE001
-            _LOGGER.warning("Unable to merge flow data into live data: %s", exc)
+            _LOGGER.warning("Unable to fetch flow data: %s", exc)
 
-        return live_data
+        # Fetch workdata from master inverter for AcRelayStatus
+        try:
+            if workdata is None:
+                master_sn = await self._get_master_sn()
+                if master_sn:
+                    workdata = await self.get_workdata(
+                        master_sn, fields=["AcRelayStatus(NA)/194"]
+                    )
+            if workdata:
+                records = workdata.get("record", [])
+                if records and isinstance(records, list) and len(records) > 0:
+                    latest = records[0]
+                    ac_relay = latest.get("AcRelayStatus(NA)/194")
+                    if ac_relay is not None:
+                        combined["acRelayStatus"] = ac_relay
+                        _LOGGER.debug("AcRelayStatus from workdata: %s", ac_relay)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.warning("Unable to fetch workdata: %s", exc)
+
+        # Merge energy values from cached inverter list
+        try:
+            inverters = await self._get_cached_inverters()
+            if inverters:
+                first = inverters[0]
+                etoday = first.get("etoday")
+                etotal = first.get("etotal")
+                if etoday is not None:
+                    combined["energyToday"] = etoday
+                if etotal is not None:
+                    combined["energyTotal"] = etotal
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Unable to merge inverter energy stats: %s", exc)
+
+        return combined
+
+    async def _get_master_sn(self) -> Optional[str]:
+        """Get the master inverter serial number."""
+        if self._master_sn:
+            return self._master_sn
+
+        # Try to find master from cached inverters + common settings
+        try:
+            inverters = await self._get_cached_inverters()
+            for inverter in inverters:
+                sn = inverter.get("sn") or inverter.get("deviceSn")
+                if not sn:
+                    continue
+                settings = await self.get_common_settings(sn)
+                settings_data = (
+                    settings.get("data") if isinstance(settings, dict) else settings
+                )
+                if isinstance(settings_data, dict):
+                    if settings_data.get("equipMode") == 1:
+                        self._master_sn = sn
+                        return sn
+            # Fallback to first inverter if single inverter plant
+            if len(inverters) == 1:
+                sn = inverters[0].get("sn") or inverters[0].get("deviceSn")
+                self._master_sn = sn
+                return sn
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Unable to determine master inverter: %s", exc)
+
+        return None
 
     async def test_connection(self) -> bool:
         try:
@@ -749,6 +890,17 @@ class SolArkCloudAPI:
         elif grid_to or to_grid:
             sensors["grid_status"] = "Active"
 
+        # ----- AC Relay Status (reliable grid connection from workdata) -----
+        ac_relay = data.get("acRelayStatus")
+        if ac_relay is not None:
+            try:
+                ac_relay_int = int(ac_relay)
+                sensors["ac_relay_status"] = (
+                    "Connected" if ac_relay_int == 1 else "Disconnected"
+                )
+            except (TypeError, ValueError):
+                _LOGGER.debug("Invalid acRelayStatus value: %r", ac_relay)
+
         # ----- Generator Status -----
         gen_on = data.get("genOn")
         if gen_on is not None:
@@ -765,6 +917,7 @@ class SolArkCloudAPI:
         sensors.setdefault("energy_total", 0.0)
         sensors.setdefault("grid_status", "Unknown")
         sensors.setdefault("generator_status", "Unknown")
+        sensors.setdefault("ac_relay_status", "Unknown")
         sensors.setdefault("battery_charge_power", 0.0)
         sensors.setdefault("battery_discharge_power", 0.0)
 

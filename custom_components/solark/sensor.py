@@ -136,6 +136,12 @@ SENSOR_DESCRIPTIONS: list[SolArkSensorDescription] = [
         device_class=SensorDeviceClass.ENUM,
         options=["Running", "Off", "Unknown"],
     ),
+    SolArkSensorDescription(
+        key="ac_relay_status",
+        name="AC Relay Status",
+        device_class=SensorDeviceClass.ENUM,
+        options=["Connected", "Disconnected", "Unknown"],
+    ),
 ]
 
 INTEGRATED_ENERGY_DESCRIPTIONS: list[SolArkIntegratedEnergyDescription] = [
