@@ -460,7 +460,7 @@ class SolArkConfigSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_suggested_object_id = f"{DOMAIN}_{description.key}"
         self._attr_has_entity_name = True
-        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": "SolArk",
@@ -492,7 +492,7 @@ class SolArkSlotModeConfigSensor(CoordinatorEntity, SensorEntity):
         self._attr_suggested_object_id = f"{DOMAIN}_{key}"
         self._attr_name = f"Slot {slot} Mode"
         self._attr_has_entity_name = True
-        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.ENUM
         self._attr_options = ["off", "sell", "charge", "both", "Unknown"]
         self._attr_device_info = {
