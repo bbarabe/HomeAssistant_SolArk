@@ -32,22 +32,25 @@ automated coding agent, follow these rules when making changes.
 
 ## Deploying to Home Assistant via HACS
 
-After committing and pushing changes, you can install directly to Home Assistant
-using the commit hash:
+**Important:** Only install and restart when explicitly asked by the user.
+
+After committing and pushing changes, the user can request installation via HACS:
 
 1. Commit and push: `git add -A && git commit -m "message" && git push`
-2. Get the short commit hash from the push output (e.g., `e566e7e`)
-3. Use MCP tools to install:
+2. Get the **full** commit hash: `git rev-parse HEAD`
+3. **Wait at least 10 seconds** after pushing before installing (GitHub needs
+   time to make the commit available)
+4. Use MCP tools to install:
    ```
    mcp__homeassistant__ha_call_service(
        domain="update",
        service="install",
        entity_id="update.solark_cloud_update",
-       data={"version": "e566e7e"}
+       data={"version": "b2b257bfull40charhashhere"}
    )
    ```
-4. The update entity is `update.solark_cloud_update`
-5. After install, a Home Assistant restart is required
+5. The update entity is `update.solark_cloud_update`
+6. After install, a Home Assistant restart is required (only when user asks)
 
 To check available updates first:
 ```
