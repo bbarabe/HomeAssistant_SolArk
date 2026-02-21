@@ -211,6 +211,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
         version = 2
 
+    if version < 3:
+        # v3: Removed number/switch/select/time platforms, replaced with
+        # read-only config sensors + configure_inverter service.
+        # No data migration needed, just bump version.
+        version = 3
+
     hass.config_entries.async_update_entry(
         entry, data=data, options=options, version=version
     )

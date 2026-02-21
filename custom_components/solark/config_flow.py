@@ -59,7 +59,7 @@ async def _test_connection(
 class SolArkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for SolArk."""
 
-    VERSION = 2
+    VERSION = 3
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
