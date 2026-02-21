@@ -69,6 +69,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Fetch common settings for an inverter",
     )
     parser.add_argument(
+        "--workdata",
+        action="store_true",
+        help="Fetch dynamic workdata for an inverter",
+    )
+    parser.add_argument(
+        "--workdata-fields",
+        help="Comma-separated list of fields for workdata (optional)",
+    )
+    parser.add_argument(
         "--set-slot",
         action="store_true",
         help="Update a system work mode slot for an inverter",
@@ -173,6 +182,7 @@ async def _run(args: argparse.Namespace) -> int:
         "parsed": args.parsed,
         "gateways": args.gateways,
         "settings": args.settings,
+        "workdata": args.workdata,
     }
     if not any(requested.values()) and not args.set_slot:
         for key in requested:
@@ -255,6 +265,19 @@ async def _run(args: argparse.Namespace) -> int:
                 settings = await client.get_common_settings(args.inverter_sn)
                 _print_section("Common Settings", settings)
 
+            if requested["workdata"]:
+                if not args.inverter_sn:
+                    print(
+                        "Missing --inverter-sn for --workdata.",
+                        file=sys.stderr,
+                    )
+                    return 2
+                fields = None
+                if args.workdata_fields:
+                    fields = [f.strip() for f in args.workdata_fields.split(",")]
+                workdata = await client.get_workdata(args.inverter_sn, fields=fields)
+                _print_section("Workdata", workdata)
+
             if requested["plants"]:
                 plants = await client.get_plants()
                 _print_section("Plant List", plants)
@@ -281,16 +304,12 @@ async def _run(args: argparse.Namespace) -> int:
                 _print_section("Flow Data", flow_data)
 
             if requested["combined"]:
-                combined = await client.get_plant_data(
-                    live_data=live_data, flow_data=flow_data
-                )
+                combined = await client.get_plant_data(flow_data=flow_data)
                 _print_section("Combined Plant Data", combined)
 
             if requested["parsed"]:
                 if combined is None:
-                    combined = await client.get_plant_data(
-                        live_data=live_data, flow_data=flow_data
-                    )
+                    combined = await client.get_plant_data(flow_data=flow_data)
                 parsed = client.parse_plant_data(combined)
                 _print_section("Parsed Sensor Values", parsed)
         except SolArkCloudAPIError as exc:
