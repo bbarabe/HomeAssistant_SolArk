@@ -92,10 +92,21 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 - Search `solark`
 - Verify 18 sensors with live data
 
-## ⚙️ System Work Mode Settings (Configuration Entities)
+## ⚙️ Inverter Configuration
 
-The integration exposes System Work Mode settings as configuration entities
-(Number, Switch, Time) under the **Configuration** group for the SolArk device.
+The integration exposes inverter settings as **read-only configuration sensors** (visible under "Configuration entities" in the device page) and provides a **service** for making changes.
+
+### Configuration Sensors
+
+All settings are displayed as read-only sensors with `entity_category: config`:
+- Power limits: Max Solar Power, Zero Export Power, Max Sell Power
+- Modes: Work Mode, Energy Mode, Solar Sell, Time of Use
+- Time slots 1-6: Time, Power, SOC, Mode
+- Day toggles: Monday through Sunday
+
+### Configuring the Inverter
+
+Use the `solark.configure_inverter` service to change settings. Only specify the parameters you want to change - others remain unchanged.
 
 **Safety default:** write access is disabled by default.
 
@@ -104,16 +115,43 @@ To enable writes:
 2. Click **Configure**
 3. Toggle **Allow write access**
 
-When write access is off, changes are blocked and will raise an error.
+### Action: `solark.configure_inverter`
 
-Note: SolArk's API maps Charge Time to `timeXon` fields and Sell Time to
-`genTimeXon`. Each time slot uses a single Sell/Charge select that updates
-both fields together. When you change multiple settings quickly, the
-integration temporarily remembers recent writes (about 30 seconds) and
-clears them after a successful fetch (or once the server reflects them) so
-API lag does not overwrite your last change.
-After a write, the settings coordinator also polls more frequently (about
-every 15 seconds for up to a minute) while pending changes exist.
+Call via **Developer Tools** → **Actions** or automations:
+
+```yaml
+action: solark.configure_inverter
+data:
+  # Power limits (all optional)
+  max_solar_power: 5000      # 500-19500 W
+  zero_export_power: 50      # 0-500 W
+  max_sell_power: 8000       # 500-32000 W
+
+  # Boolean toggles
+  solar_sell: true
+  time_of_use: true
+
+  # Modes
+  work_mode: grid_selling    # grid_selling, limited_to_load, limited_to_home
+  energy_mode: battery_first # battery_first, load_first
+
+  # Time slot configuration (slots 1-6)
+  slot1_time: "06:00"
+  slot1_power: 3000          # 0-14000 W
+  slot1_soc: 20              # 0-100 %
+  slot1_mode: charge         # off, sell, charge, both
+
+  # Day toggles for time-of-use schedule
+  monday: true
+  tuesday: true
+  # ... etc
+```
+
+**Benefits of action-based configuration:**
+- **Atomic**: All changes sent in a single API call
+- **Safe**: Dashboard visitors cannot accidentally change settings
+- **Scriptable**: Easy to use in automations and scripts
+- **Explicit**: Changes require intentional action
 
 ## 🧪 CLI Testing (Optional)
 
@@ -195,7 +233,7 @@ automation:
       entity_id: sensor.solark_battery_soc
       below: 20
     action:
-      service: notify.mobile_app
+      action: notify.mobile_app
       data:
         title: "Low Battery"
         message: "Battery at {{ states('sensor.solark_battery_soc') }}%"
@@ -211,7 +249,7 @@ automation:
       above: 2000
       for: "00:05:00"
     action:
-      service: notify.mobile_app
+      action: notify.mobile_app
       data:
         message: "Exporting {{ states('sensor.solark_grid_export_power') }}W"
 ```
@@ -229,7 +267,7 @@ automation:
       entity_id: sensor.solark_battery_power
       below: 100
     action:
-      service: notify.mobile_app
+      action: notify.mobile_app
       data:
         message: "Battery full at {{ states('sensor.solark_battery_soc') }}%"
 ```

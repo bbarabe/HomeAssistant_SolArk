@@ -16,6 +16,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -25,6 +26,11 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .services import (
+    WORK_MODE_REVERSE,
+    ENERGY_MODE_REVERSE,
+    slot_mode_from_api,
+)
 from .solark_logging import get_logger
 
 _LOGGER = get_logger(__name__)
@@ -200,6 +206,170 @@ except Exception:  # pragma: no cover - handled at runtime in HA
     HAS_INTEGRATION_SENSOR = False
 
 
+# Configuration sensors (read-only, from settings coordinator)
+@dataclass
+class SolArkConfigSensorDescription(SensorEntityDescription):
+    """Description for config sensors."""
+
+    key: str
+    api_key: str = ""
+    value_fn: Any = None  # Optional transform function
+
+
+def _bool_to_str(val: Any) -> str:
+    """Convert bool/int to On/Off string."""
+    if val is None:
+        return "Unknown"
+    if isinstance(val, bool):
+        return "On" if val else "Off"
+    try:
+        return "On" if int(val) else "Off"
+    except (TypeError, ValueError):
+        return "Unknown"
+
+
+def _work_mode_to_str(val: Any) -> str:
+    """Convert work mode int to string."""
+    if val is None:
+        return "Unknown"
+    try:
+        return WORK_MODE_REVERSE.get(int(val), f"Unknown ({val})")
+    except (TypeError, ValueError):
+        return "Unknown"
+
+
+def _energy_mode_to_str(val: Any) -> str:
+    """Convert energy mode int to string."""
+    if val is None:
+        return "Unknown"
+    try:
+        return ENERGY_MODE_REVERSE.get(int(val), f"Unknown ({val})")
+    except (TypeError, ValueError):
+        return "Unknown"
+
+
+def _coerce_bool(value: Any) -> bool:
+    """Coerce value to boolean."""
+    if isinstance(value, bool):
+        return value
+    try:
+        return bool(int(value))
+    except (TypeError, ValueError):
+        return bool(value)
+
+
+CONFIG_SENSOR_DESCRIPTIONS: list[SolArkConfigSensorDescription] = [
+    # Power limits
+    SolArkConfigSensorDescription(
+        key="config_max_solar_power",
+        api_key="solarMaxSellPower",
+        name="Max Solar Power",
+        native_unit_of_measurement="W",
+        device_class=SensorDeviceClass.POWER,
+    ),
+    SolArkConfigSensorDescription(
+        key="config_zero_export_power",
+        api_key="zeroExportPower",
+        name="Zero Export Power",
+        native_unit_of_measurement="W",
+        device_class=SensorDeviceClass.POWER,
+    ),
+    SolArkConfigSensorDescription(
+        key="config_max_sell_power",
+        api_key="pvMaxLimit",
+        name="Max Sell Power",
+        native_unit_of_measurement="W",
+        device_class=SensorDeviceClass.POWER,
+    ),
+    # Boolean settings
+    SolArkConfigSensorDescription(
+        key="config_solar_sell",
+        api_key="solarSell",
+        name="Solar Sell",
+        device_class=SensorDeviceClass.ENUM,
+        options=["On", "Off", "Unknown"],
+        value_fn=_bool_to_str,
+    ),
+    SolArkConfigSensorDescription(
+        key="config_time_of_use",
+        api_key="peakAndVallery",
+        name="Time of Use",
+        device_class=SensorDeviceClass.ENUM,
+        options=["On", "Off", "Unknown"],
+        value_fn=_bool_to_str,
+    ),
+    # Mode settings
+    SolArkConfigSensorDescription(
+        key="config_work_mode",
+        api_key="sysWorkMode",
+        name="Work Mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=["grid_selling", "limited_to_load", "limited_to_home", "Unknown"],
+        value_fn=_work_mode_to_str,
+    ),
+    SolArkConfigSensorDescription(
+        key="config_energy_mode",
+        api_key="energyMode",
+        name="Energy Mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=["battery_first", "load_first", "Unknown"],
+        value_fn=_energy_mode_to_str,
+    ),
+]
+
+# Day toggle sensors
+for day_key, day_label in (
+    ("mondayOn", "Monday"),
+    ("tuesdayOn", "Tuesday"),
+    ("wednesdayOn", "Wednesday"),
+    ("thursdayOn", "Thursday"),
+    ("fridayOn", "Friday"),
+    ("saturdayOn", "Saturday"),
+    ("sundayOn", "Sunday"),
+):
+    CONFIG_SENSOR_DESCRIPTIONS.append(
+        SolArkConfigSensorDescription(
+            key=f"config_{day_label.lower()}",
+            api_key=day_key,
+            name=f"Time of Use {day_label}",
+            device_class=SensorDeviceClass.ENUM,
+            options=["On", "Off", "Unknown"],
+            value_fn=_bool_to_str,
+        )
+    )
+
+# Slot sensors (1-6)
+for slot in range(1, 7):
+    CONFIG_SENSOR_DESCRIPTIONS.extend(
+        [
+            SolArkConfigSensorDescription(
+                key=f"config_slot{slot}_time",
+                api_key=f"sellTime{slot}",
+                name=f"Slot {slot} Time",
+            ),
+            SolArkConfigSensorDescription(
+                key=f"config_slot{slot}_power",
+                api_key=f"sellTime{slot}Pac",
+                name=f"Slot {slot} Power",
+                native_unit_of_measurement="W",
+                device_class=SensorDeviceClass.POWER,
+            ),
+            SolArkConfigSensorDescription(
+                key=f"config_slot{slot}_soc",
+                api_key=f"cap{slot}",
+                name=f"Slot {slot} Battery SOC",
+                native_unit_of_measurement="%",
+            ),
+        ]
+    )
+
+
+# Slot mode sensors need special handling (computed from two API fields)
+SLOT_MODE_SENSORS: list[tuple[int, str]] = [
+    (slot, f"config_slot{slot}_mode") for slot in range(1, 7)
+]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -208,6 +378,7 @@ async def async_setup_entry(
     """Set up SolArk sensors from config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: DataUpdateCoordinator = data["coordinator"]
+    settings_coordinator: DataUpdateCoordinator = data["settings_coordinator"]
 
     entities: list[SensorEntity] = [
         SolArkSensor(coordinator, entry, desc) for desc in SENSOR_DESCRIPTIONS
@@ -217,6 +388,18 @@ async def async_setup_entry(
     energy_entities = _build_energy_entities(hass, entry, coordinator)
     if energy_entities:
         async_add_entities(energy_entities, update_before_add=True)
+
+    # Add configuration sensors (read-only, from settings coordinator)
+    config_entities: list[SensorEntity] = [
+        SolArkConfigSensor(settings_coordinator, entry, desc)
+        for desc in CONFIG_SENSOR_DESCRIPTIONS
+    ]
+    # Add slot mode sensors (computed from two API fields)
+    for slot, key in SLOT_MODE_SENSORS:
+        config_entities.append(
+            SolArkSlotModeConfigSensor(settings_coordinator, entry, slot, key)
+        )
+    async_add_entities(config_entities, update_before_add=True)
 
     hass.async_create_task(_async_fix_grid_power_entity_id(hass, entry))
 
@@ -245,6 +428,73 @@ class SolArkSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> Any:
         data = self.coordinator.data or {}
         return data.get(self.entity_description.key)
+
+
+class SolArkConfigSensor(CoordinatorEntity, SensorEntity):
+    """Read-only sensor for inverter configuration values."""
+
+    entity_description: SolArkConfigSensorDescription
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        entry: ConfigEntry,
+        description: SolArkConfigSensorDescription,
+    ) -> None:
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_suggested_object_id = f"{DOMAIN}_{description.key}"
+        self._attr_has_entity_name = True
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "SolArk",
+            "manufacturer": "SolArk",
+        }
+
+    @property
+    def native_value(self) -> Any:
+        settings = (self.coordinator.data or {}).get("settings") or {}
+        value = settings.get(self.entity_description.api_key)
+        if self.entity_description.value_fn is not None:
+            return self.entity_description.value_fn(value)
+        return value
+
+
+class SolArkSlotModeConfigSensor(CoordinatorEntity, SensorEntity):
+    """Read-only sensor for slot mode (computed from time{N}on + genTime{N}on)."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        entry: ConfigEntry,
+        slot: int,
+        key: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._slot = slot
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._attr_suggested_object_id = f"{DOMAIN}_{key}"
+        self._attr_name = f"Slot {slot} Mode"
+        self._attr_has_entity_name = True
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_device_class = SensorDeviceClass.ENUM
+        self._attr_options = ["off", "sell", "charge", "both", "Unknown"]
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "SolArk",
+            "manufacturer": "SolArk",
+        }
+
+    @property
+    def native_value(self) -> str:
+        settings = (self.coordinator.data or {}).get("settings") or {}
+        time_on = settings.get(f"time{self._slot}on")
+        gen_on = settings.get(f"genTime{self._slot}on")
+        if time_on is None or gen_on is None:
+            return "Unknown"
+        return slot_mode_from_api(_coerce_bool(time_on), _coerce_bool(gen_on))
 
 
 class SolArkIntegratedEnergySensor(CoordinatorEntity, SensorEntity, RestoreEntity):
