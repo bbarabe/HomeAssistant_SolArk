@@ -94,11 +94,11 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 
 ## ⚙️ Inverter Configuration
 
-The integration exposes inverter settings as **read-only configuration sensors** (visible under "Configuration entities" in the device page) and provides a **service** for making changes.
+The integration exposes inverter settings as **read-only diagnostic sensors** (visible under "Diagnostic" in the device page) and provides a **service** for making changes.
 
-### Configuration Sensors
+### Diagnostic Sensors
 
-All settings are displayed as read-only sensors with `entity_category: config`:
+All settings are displayed as read-only sensors with `entity_category: diagnostic`:
 - Power limits: Max Solar Power, Zero Export Power, Max Sell Power
 - Modes: Work Mode, Energy Mode, Solar Sell, Time of Use
 - Time slots 1-6: Time, Power, SOC, Mode
