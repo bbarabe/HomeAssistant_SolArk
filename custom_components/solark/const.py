@@ -13,4 +13,4 @@ DEFAULT_API_URL = "https://ecsprod-api-new.solarkcloud.com"
 DEFAULT_SCAN_INTERVAL = 30  # seconds
 DEFAULT_ALLOW_WRITE = False
 
-PLATFORMS = ["sensor", "number", "switch", "time", "select"]
+PLATFORMS = ["sensor"]

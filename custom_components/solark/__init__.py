@@ -10,6 +10,9 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.core import ServiceCall
+from homeassistant.exceptions import HomeAssistantError
+
 from .const import (
     DOMAIN,
     CONF_USERNAME,
@@ -25,6 +28,7 @@ from .const import (
     DEFAULT_ALLOW_WRITE,
     PLATFORMS,
 )
+from .services import CONFIGURE_INVERTER_SCHEMA, build_api_updates
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,6 +134,59 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register the configure_inverter service
+    async def handle_configure_inverter(call: ServiceCall) -> None:
+        """Handle the configure_inverter service call."""
+        # Check write access
+        if not allow_write_access:
+            raise HomeAssistantError("Write access is disabled for SolArk.")
+
+        # Get master inverter SN from settings coordinator
+        settings_data = settings_coordinator.data or {}
+        sn = settings_data.get("sn")
+        if not sn:
+            raise HomeAssistantError("Master inverter not available.")
+
+        # Convert service parameters to API updates
+        service_data = dict(call.data)
+
+        # Handle time objects - convert to HH:MM strings
+        for key, value in list(service_data.items()):
+            if hasattr(value, "strftime"):
+                service_data[key] = value.strftime("%H:%M")
+
+        updates = build_api_updates(service_data)
+        if not updates:
+            _LOGGER.warning("No valid parameters provided to configure_inverter")
+            return
+
+        _LOGGER.info(
+            "Configuring inverter %s with updates: %s",
+            sn,
+            list(updates.keys()),
+        )
+
+        try:
+            await api.set_common_settings(sn=sn, updates=updates, require_master=True)
+        except Exception as err:
+            raise HomeAssistantError(f"Failed to configure inverter: {err}") from err
+
+        # Trigger settings refresh
+        refresh_burst = hass.data[DOMAIN][entry.entry_id].get("settings_refresh_burst")
+        if refresh_burst:
+            await refresh_burst()
+        await settings_coordinator.async_request_refresh()
+
+    # Only register service once (first entry)
+    if not hass.services.has_service(DOMAIN, "configure_inverter"):
+        hass.services.async_register(
+            DOMAIN,
+            "configure_inverter",
+            handle_configure_inverter,
+            schema=CONFIGURE_INVERTER_SCHEMA,
+        )
+
     return True
 
 

@@ -1,0 +1,332 @@
+configure_inverter:
+  name: Configure Inverter
+  description: Update Sol-Ark inverter settings. Only specified parameters are changed.
+  fields:
+    max_solar_power:
+      name: Max Solar Power
+      description: Maximum solar sell power in watts
+      example: 5000
+      selector:
+        number:
+          min: 500
+          max: 19500
+          unit_of_measurement: W
+          mode: box
+    zero_export_power:
+      name: Zero Export Power
+      description: Zero export power threshold in watts
+      example: 50
+      selector:
+        number:
+          min: 0
+          max: 500
+          unit_of_measurement: W
+          mode: box
+    max_sell_power:
+      name: Max Sell Power
+      description: Maximum power to sell to grid in watts
+      example: 8000
+      selector:
+        number:
+          min: 500
+          max: 32000
+          unit_of_measurement: W
+          mode: box
+    solar_sell:
+      name: Solar Sell
+      description: Enable selling solar power to grid
+      example: true
+      selector:
+        boolean:
+    time_of_use:
+      name: Time of Use
+      description: Enable time-of-use energy pattern (peak and valley)
+      example: true
+      selector:
+        boolean:
+    work_mode:
+      name: Work Mode
+      description: Inverter operating mode
+      example: grid_selling
+      selector:
+        select:
+          options:
+            - label: Grid Selling
+              value: grid_selling
+            - label: Limited to Load
+              value: limited_to_load
+            - label: Limited to Home
+              value: limited_to_home
+    energy_mode:
+      name: Energy Mode
+      description: Energy consumption priority
+      example: battery_first
+      selector:
+        select:
+          options:
+            - label: Battery First
+              value: battery_first
+            - label: Load First
+              value: load_first
+    monday:
+      name: Monday
+      description: Enable time-of-use schedule on Monday
+      selector:
+        boolean:
+    tuesday:
+      name: Tuesday
+      description: Enable time-of-use schedule on Tuesday
+      selector:
+        boolean:
+    wednesday:
+      name: Wednesday
+      description: Enable time-of-use schedule on Wednesday
+      selector:
+        boolean:
+    thursday:
+      name: Thursday
+      description: Enable time-of-use schedule on Thursday
+      selector:
+        boolean:
+    friday:
+      name: Friday
+      description: Enable time-of-use schedule on Friday
+      selector:
+        boolean:
+    saturday:
+      name: Saturday
+      description: Enable time-of-use schedule on Saturday
+      selector:
+        boolean:
+    sunday:
+      name: Sunday
+      description: Enable time-of-use schedule on Sunday
+      selector:
+        boolean:
+    slot1_time:
+      name: Slot 1 Time
+      description: Start time for slot 1 (HH:MM)
+      example: "06:00"
+      selector:
+        time:
+    slot1_power:
+      name: Slot 1 Power
+      description: Power setting for slot 1 in watts
+      example: 3000
+      selector:
+        number:
+          min: 0
+          max: 14000
+          unit_of_measurement: W
+          mode: box
+    slot1_soc:
+      name: Slot 1 Battery SOC
+      description: Minimum battery SOC for slot 1
+      example: 20
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    slot1_mode:
+      name: Slot 1 Mode
+      description: Operating mode for slot 1
+      example: charge
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: Sell
+              value: sell
+            - label: Charge
+              value: charge
+            - label: Both
+              value: both
+    slot2_time:
+      name: Slot 2 Time
+      description: Start time for slot 2 (HH:MM)
+      example: "10:00"
+      selector:
+        time:
+    slot2_power:
+      name: Slot 2 Power
+      description: Power setting for slot 2 in watts
+      selector:
+        number:
+          min: 0
+          max: 14000
+          unit_of_measurement: W
+          mode: box
+    slot2_soc:
+      name: Slot 2 Battery SOC
+      description: Minimum battery SOC for slot 2
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    slot2_mode:
+      name: Slot 2 Mode
+      description: Operating mode for slot 2
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: Sell
+              value: sell
+            - label: Charge
+              value: charge
+            - label: Both
+              value: both
+    slot3_time:
+      name: Slot 3 Time
+      description: Start time for slot 3 (HH:MM)
+      selector:
+        time:
+    slot3_power:
+      name: Slot 3 Power
+      description: Power setting for slot 3 in watts
+      selector:
+        number:
+          min: 0
+          max: 14000
+          unit_of_measurement: W
+          mode: box
+    slot3_soc:
+      name: Slot 3 Battery SOC
+      description: Minimum battery SOC for slot 3
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    slot3_mode:
+      name: Slot 3 Mode
+      description: Operating mode for slot 3
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: Sell
+              value: sell
+            - label: Charge
+              value: charge
+            - label: Both
+              value: both
+    slot4_time:
+      name: Slot 4 Time
+      description: Start time for slot 4 (HH:MM)
+      selector:
+        time:
+    slot4_power:
+      name: Slot 4 Power
+      description: Power setting for slot 4 in watts
+      selector:
+        number:
+          min: 0
+          max: 14000
+          unit_of_measurement: W
+          mode: box
+    slot4_soc:
+      name: Slot 4 Battery SOC
+      description: Minimum battery SOC for slot 4
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    slot4_mode:
+      name: Slot 4 Mode
+      description: Operating mode for slot 4
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: Sell
+              value: sell
+            - label: Charge
+              value: charge
+            - label: Both
+              value: both
+    slot5_time:
+      name: Slot 5 Time
+      description: Start time for slot 5 (HH:MM)
+      selector:
+        time:
+    slot5_power:
+      name: Slot 5 Power
+      description: Power setting for slot 5 in watts
+      selector:
+        number:
+          min: 0
+          max: 14000
+          unit_of_measurement: W
+          mode: box
+    slot5_soc:
+      name: Slot 5 Battery SOC
+      description: Minimum battery SOC for slot 5
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    slot5_mode:
+      name: Slot 5 Mode
+      description: Operating mode for slot 5
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: Sell
+              value: sell
+            - label: Charge
+              value: charge
+            - label: Both
+              value: both
+    slot6_time:
+      name: Slot 6 Time
+      description: Start time for slot 6 (HH:MM)
+      selector:
+        time:
+    slot6_power:
+      name: Slot 6 Power
+      description: Power setting for slot 6 in watts
+      selector:
+        number:
+          min: 0
+          max: 14000
+          unit_of_measurement: W
+          mode: box
+    slot6_soc:
+      name: Slot 6 Battery SOC
+      description: Minimum battery SOC for slot 6
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    slot6_mode:
+      name: Slot 6 Mode
+      description: Operating mode for slot 6
+      selector:
+        select:
+          options:
+            - label: "Off"
+              value: "off"
+            - label: Sell
+              value: sell
+            - label: Charge
+              value: charge
+            - label: Both
+              value: both
