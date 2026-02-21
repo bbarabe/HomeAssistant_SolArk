@@ -29,3 +29,27 @@ automated coding agent, follow these rules when making changes.
 - Run the CLI against a test secrets file when changing CLI behavior.
 - Validate Home Assistant config flow and sensor parsing when touching those
   modules.
+
+## Deploying to Home Assistant via HACS
+
+After committing and pushing changes, you can install directly to Home Assistant
+using the commit hash:
+
+1. Commit and push: `git add -A && git commit -m "message" && git push`
+2. Get the short commit hash from the push output (e.g., `e566e7e`)
+3. Use MCP tools to install:
+   ```
+   mcp__homeassistant__ha_call_service(
+       domain="update",
+       service="install",
+       entity_id="update.solark_cloud_update",
+       data={"version": "e566e7e"}
+   )
+   ```
+4. The update entity is `update.solark_cloud_update`
+5. After install, a Home Assistant restart is required
+
+To check available updates first:
+```
+mcp__homeassistant__ha_get_updates()
+```
