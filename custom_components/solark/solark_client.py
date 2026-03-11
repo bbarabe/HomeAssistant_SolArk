@@ -525,7 +525,7 @@ class SolArkCloudAPI:
     async def get_flow_data(self) -> Dict[str, Any]:
         """Fetch plant power flow data (pv, batt, grid, load, soc)."""
         await self._auth.ensure_token()
-        date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        date_str = datetime.now(self._timezone).strftime("%Y-%m-%d")
         params = {"date": date_str}
         endpoint = f"/api/v1/plant/energy/{self.plant_id}/flow"
         _LOGGER.debug(
