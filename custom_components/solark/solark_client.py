@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import aiohttp
 
@@ -25,6 +26,7 @@ class SolArkCloudAPI:
         base_url: str,
         api_url: str,
         session: aiohttp.ClientSession,
+        timezone: str = "UTC",
     ) -> None:
         self.username = username
         self.password = password
@@ -32,6 +34,7 @@ class SolArkCloudAPI:
 
         self.base_url = base_url.rstrip("/")
         self.api_url = api_url.rstrip("/")
+        self._timezone = ZoneInfo(timezone)
 
         self._session = session
         self._master_sn: Optional[str] = None
@@ -566,7 +569,7 @@ class SolArkCloudAPI:
             Dictionary with field names as keys and values.
         """
         await self._auth.ensure_token()
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(self._timezone).strftime("%Y-%m-%d")
         params: Dict[str, Any] = {
             "sn": sn,
             "page": 1,
