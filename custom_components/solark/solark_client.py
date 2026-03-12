@@ -42,6 +42,9 @@ class SolArkCloudAPI:
         self._pending_setting_ttl_seconds = 30
         self._inverters_cache: Optional[list[dict[str, Any]]] = None
         self._inverters_cache_lock = asyncio.Lock()
+        # Cache last-known status sensor values to ride through brief data gaps
+        self._last_status: Dict[str, tuple[str, datetime]] = {}
+        self._status_retain_seconds = 1800  # 30 minutes
         self._auth = SolArkAuth(
             username=username,
             password=password,
@@ -918,11 +921,29 @@ class SolArkCloudAPI:
         sensors.setdefault("battery_soc", 0.0)
         sensors.setdefault("energy_today", 0.0)
         sensors.setdefault("energy_total", 0.0)
-        sensors.setdefault("grid_status", "Unknown")
-        sensors.setdefault("generator_status", "Unknown")
-        sensors.setdefault("ac_relay_status", "Unknown")
         sensors.setdefault("battery_charge_power", 0.0)
         sensors.setdefault("battery_discharge_power", 0.0)
+
+        # ----- Retain last-known status values through brief data gaps -----
+        now = datetime.utcnow()
+        for key in ("grid_status", "generator_status", "ac_relay_status"):
+            if key in sensors and sensors[key] != "Unknown":
+                # Got a real value — cache it
+                self._last_status[key] = (sensors[key], now)
+            elif key in self._last_status:
+                # No new data — use cached value if within retention window
+                cached_value, cached_time = self._last_status[key]
+                age = (now - cached_time).total_seconds()
+                if age <= self._status_retain_seconds:
+                    sensors[key] = cached_value
+                    _LOGGER.debug(
+                        "Retaining cached %s=%s (age %ds)", key, cached_value, age
+                    )
+                else:
+                    del self._last_status[key]
+                    sensors.setdefault(key, "Unknown")
+            else:
+                sensors.setdefault(key, "Unknown")
 
         _LOGGER.debug("Parsed sensors dict: %s", sensors)
         return sensors
