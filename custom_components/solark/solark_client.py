@@ -76,37 +76,40 @@ class SolArkCloudAPI:
             if self._inverters_cache is not None:
                 return self._inverters_cache
 
-            inv_params = {
-                "page": 1,
-                "limit": 50,
-                "stationId": self.plant_id,
-                "status": -1,
-                "sn": "",
-                "type": -2,
-            }
             _LOGGER.debug(
-                "Requesting inverter list for cache with params=%s", inv_params
+                "Requesting inverter list for cache (plant_id=%s)", self.plant_id
             )
-            inv_resp = await self._request(
-                "GET",
-                f"/api/v1/plant/{self.plant_id}/inverters",
-                inv_params,
-            )
-            inv_data = inv_resp.get("data") if isinstance(inv_resp, dict) else None
-            inverters = []
-            if isinstance(inv_data, dict):
-                inverters = (
-                    inv_data.get("infos")
-                    or inv_data.get("list")
-                    or inv_data.get("records")
-                    or []
-                )
-
-            self._inverters_cache = inverters
+            self._inverters_cache = await self._fetch_inverters()
             _LOGGER.debug(
                 "Cached inverter list length: %s", len(self._inverters_cache)
             )
             return self._inverters_cache
+
+    async def _fetch_inverters(self) -> list[dict[str, Any]]:
+        """Fetch inverter list from the API (not cached)."""
+        inv_params = {
+            "page": 1,
+            "limit": 50,
+            "stationId": self.plant_id,
+            "status": -1,
+            "sn": "",
+            "type": -2,
+        }
+        inv_resp = await self._request(
+            "GET",
+            f"/api/v1/plant/{self.plant_id}/inverters",
+            inv_params,
+        )
+        inv_data = inv_resp.get("data") if isinstance(inv_resp, dict) else None
+        inverters: list[dict[str, Any]] = []
+        if isinstance(inv_data, dict):
+            inverters = (
+                inv_data.get("infos")
+                or inv_data.get("list")
+                or inv_data.get("records")
+                or []
+            )
+        return inverters
 
     async def _request(
         self,
@@ -687,9 +690,9 @@ class SolArkCloudAPI:
         except Exception as exc:  # noqa: BLE001
             _LOGGER.warning("Unable to fetch workdata: %s", exc)
 
-        # Merge energy values from cached inverter list
+        # Fetch fresh inverter data for energy values (not cached)
         try:
-            inverters = await self._get_cached_inverters()
+            inverters = await self._fetch_inverters()
             if inverters:
                 first = inverters[0]
                 etoday = first.get("etoday")
@@ -699,7 +702,7 @@ class SolArkCloudAPI:
                 if etotal is not None:
                     combined["energyTotal"] = etotal
         except Exception as exc:  # noqa: BLE001
-            _LOGGER.debug("Unable to merge inverter energy stats: %s", exc)
+            _LOGGER.debug("Unable to fetch inverter energy stats: %s", exc)
 
         return combined
 
