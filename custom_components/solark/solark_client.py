@@ -695,11 +695,11 @@ class SolArkCloudAPI:
             inverters = await self._fetch_inverters()
             if inverters:
                 first = inverters[0]
-                etoday = first.get("etoday")
-                etotal = first.get("etotal")
-                if etoday is not None:
+                etoday = self._safe_float(first.get("etoday"))
+                etotal = self._safe_float(first.get("etotal"))
+                if etoday > 0:
                     combined["energyToday"] = etoday
-                if etotal is not None:
+                if etotal > 0:
                     combined["energyTotal"] = etotal
         except Exception as exc:  # noqa: BLE001
             _LOGGER.debug("Unable to fetch inverter energy stats: %s", exc)
@@ -769,13 +769,13 @@ class SolArkCloudAPI:
 
         # ----- Energy today / total -----
         if "energyToday" in data or "etoday" in data:
-            sensors["energy_today"] = self._safe_float(
-                data.get("energyToday", data.get("etoday"))
-            )
+            val = self._safe_float(data.get("energyToday", data.get("etoday")))
+            if val > 0:
+                sensors["energy_today"] = val
         if "energyTotal" in data or "etotal" in data:
-            sensors["energy_total"] = self._safe_float(
-                data.get("energyTotal", data.get("etotal"))
-            )
+            val = self._safe_float(data.get("energyTotal", data.get("etotal")))
+            if val > 0:
+                sensors["energy_total"] = val
 
         # ----- Battery SOC -----
         if "soc" in data:
@@ -922,13 +922,21 @@ class SolArkCloudAPI:
         sensors.setdefault("grid_import_power", 0.0)
         sensors.setdefault("grid_export_power", 0.0)
         sensors.setdefault("battery_soc", 0.0)
-        sensors.setdefault("energy_today", 0.0)
-        sensors.setdefault("energy_total", 0.0)
         sensors.setdefault("battery_charge_power", 0.0)
         sensors.setdefault("battery_discharge_power", 0.0)
 
-        # ----- Retain last-known status values through brief data gaps -----
+        # ----- Retain last-known values through brief data gaps -----
         now = datetime.utcnow()
+
+        # Energy counters: retain last-known value when API returns zero/missing,
+        # so TOTAL_INCREASING sensors don't briefly drop and cause bogus spikes.
+        for key in ("energy_today", "energy_total"):
+            if key in sensors and sensors[key] > 0:
+                self._last_status[key] = (sensors[key], now)
+            elif key in self._last_status:
+                cached_value, _ = self._last_status[key]
+                sensors[key] = cached_value
+                _LOGGER.debug("Retaining cached %s=%s", key, cached_value)
         for key in ("grid_status", "generator_status", "ac_relay_status"):
             if key in sensors and sensors[key] != "Unknown":
                 # Got a real value — cache it
