@@ -308,6 +308,14 @@ template:
 
 ## 🔧 Troubleshooting
 
+### Data Fetch Health (Repairs)
+The integration monitors each data source it polls (live flow data and inverter
+work data such as **AC Relay Status**). If any source keeps failing for **over
+an hour**, a notification appears under **Settings** → **System** → **Repairs**
+describing which data is affected and what to check. The repair issue clears
+automatically once data starts flowing again — there is never more than one
+issue per data source.
+
 ### Integration Won't Connect
 - Verify credentials at mysolark.com
 - Confirm Plant ID is correct

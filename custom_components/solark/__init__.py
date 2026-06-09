@@ -32,6 +32,43 @@ from .services import CONFIGURE_INVERTER_SCHEMA, build_api_updates
 
 _LOGGER = logging.getLogger(__name__)
 
+# Raise a repair issue once a SolArk sub-fetch has been failing this long.
+FETCH_FAILURE_THRESHOLD_SECONDS = 3600  # 1 hour
+
+# Human-friendly labels for the repair-issue {component} placeholder.
+_FETCH_COMPONENT_LABELS: dict[str, str] = {
+    "flow": "live flow data (PV, battery, grid and load power)",
+    "workdata": "inverter work data (AC Relay Status)",
+}
+
+
+def _update_fetch_health_issues(hass: HomeAssistant, api: Any) -> None:
+    """Create or clear repair issues based on per-sub-fetch health.
+
+    Raises one repair issue per component that has been failing longer than
+    FETCH_FAILURE_THRESHOLD_SECONDS and clears it as soon as the component
+    recovers. Issue IDs are stable (one per component) so there is never more
+    than one issue per component, and they auto-resolve on recovery.
+    """
+    from homeassistant.helpers import issue_registry as ir
+
+    for component, failing_seconds in api.get_fetch_health().items():
+        issue_id = f"fetch_failure_{component}"
+        if failing_seconds >= FETCH_FAILURE_THRESHOLD_SECONDS:
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="fetch_failure",
+                translation_placeholders={
+                    "component": _FETCH_COMPONENT_LABELS.get(component, component),
+                },
+            )
+        else:
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up from YAML (not used)."""
@@ -92,9 +129,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             raw = await api.get_plant_data()
             parsed = api.parse_plant_data(raw)
-            return parsed
         except SolArkCloudAPIError as err:
             raise UpdateFailed(str(err)) from err
+        # get_plant_data swallows per-sub-fetch errors, so evaluate health
+        # here every cycle to raise/clear repair issues for prolonged failures.
+        _update_fetch_health_issues(hass, api)
+        return parsed
 
     async def async_update_settings() -> dict[str, Any]:
         """Fetch master inverter settings for configuration entities."""
@@ -196,6 +236,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        # Clear any outstanding health repair issues for this integration.
+        from homeassistant.helpers import issue_registry as ir
+
+        for component in _FETCH_COMPONENT_LABELS:
+            ir.async_delete_issue(hass, DOMAIN, f"fetch_failure_{component}")
     return unload_ok
 
 
