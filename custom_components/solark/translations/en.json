@@ -33,6 +33,12 @@
       }
     }
   },
+  "issues": {
+    "fetch_failure": {
+      "title": "SolArk: data fetch failing",
+      "description": "Home Assistant has been unable to fetch {component} from the SolArk cloud for over an hour. The affected sensors are showing stale or unknown values.\n\nThings to check:\n1. Internet connectivity from Home Assistant.\n2. SolArk / MySolArk cloud status (try logging in at mysolark.com).\n3. The integration may need re-authentication (Settings > Devices & Services > SolArk).\n4. Look for `custom_components.solark` warnings in Settings > System > Logs.\n\nThis issue will clear automatically once data starts flowing again."
+    }
+  },
   "entity": {
     "sensor": {
       "pv_power": {

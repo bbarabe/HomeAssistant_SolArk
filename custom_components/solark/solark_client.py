@@ -45,6 +45,14 @@ class SolArkCloudAPI:
         # Cache last-known status sensor values to ride through brief data gaps
         self._last_status: Dict[str, tuple[str, datetime]] = {}
         self._status_retain_seconds = 1800  # 30 minutes
+        # Track per-sub-fetch health so the integration can raise a repair
+        # issue when a component keeps failing (e.g. the workdata 401 that
+        # silently froze AC Relay Status). Maps component -> first-failure time
+        # (None when the component is currently healthy).
+        self._fetch_failing_since: Dict[str, Optional[datetime]] = {
+            "flow": None,
+            "workdata": None,
+        }
         self._auth = SolArkAuth(
             username=username,
             password=password,
@@ -646,6 +654,7 @@ class SolArkCloudAPI:
         combined: Dict[str, Any] = {}
 
         # Fetch flow data (plant-level aggregates)
+        flow_ok = False
         try:
             if flow_data is None:
                 flow_data = await self.get_flow_data()
@@ -668,10 +677,13 @@ class SolArkCloudAPI:
                 ):
                     if key in flow_data:
                         combined[key] = flow_data[key]
+                flow_ok = True
         except Exception as exc:  # noqa: BLE001
             _LOGGER.warning("Unable to fetch flow data: %s", exc)
+        self._mark_fetch("flow", flow_ok)
 
         # Fetch workdata from master inverter for AcRelayStatus
+        workdata_ok = False
         try:
             if workdata is None:
                 master_sn = await self._get_master_sn()
@@ -686,9 +698,11 @@ class SolArkCloudAPI:
                     ac_relay = latest.get("AcRelayStatus(NA)/194")
                     if ac_relay is not None:
                         combined["acRelayStatus"] = ac_relay
+                        workdata_ok = True
                         _LOGGER.debug("AcRelayStatus from workdata: %s", ac_relay)
         except Exception as exc:  # noqa: BLE001
             _LOGGER.warning("Unable to fetch workdata: %s", exc)
+        self._mark_fetch("workdata", workdata_ok)
 
         # Fetch fresh inverter data for energy values (not cached)
         try:
@@ -705,6 +719,32 @@ class SolArkCloudAPI:
             _LOGGER.debug("Unable to fetch inverter energy stats: %s", exc)
 
         return combined
+
+    def _mark_fetch(self, component: str, success: bool) -> None:
+        """Record the health of a sub-fetch component.
+
+        On success the component is marked healthy. On failure we remember
+        the time of the *first* consecutive failure so callers can tell how
+        long a component has been down.
+        """
+        if success:
+            self._fetch_failing_since[component] = None
+        elif self._fetch_failing_since.get(component) is None:
+            self._fetch_failing_since[component] = datetime.utcnow()
+
+    def get_fetch_health(self) -> Dict[str, float]:
+        """Return how long each sub-fetch has been continuously failing.
+
+        Maps component name -> seconds since the first consecutive failure
+        (0.0 when the component is currently healthy). Both this method and
+        ``_mark_fetch`` use ``datetime.utcnow()`` so the elapsed time is
+        timezone-agnostic.
+        """
+        now = datetime.utcnow()
+        return {
+            component: (now - since).total_seconds() if since else 0.0
+            for component, since in self._fetch_failing_since.items()
+        }
 
     async def _get_master_sn(self) -> Optional[str]:
         """Get the master inverter serial number."""
