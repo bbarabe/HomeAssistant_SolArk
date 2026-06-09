@@ -588,7 +588,7 @@ class SolArkCloudAPI:
         if fields:
             params["fields"] = ",".join(fields)
 
-        url = "https://api.solarkcloud.com/api/v1/workdata/dynamic"
+        url = f"{self.api_url}/api/v1/workdata/dynamic"
         headers = self._auth.get_headers(strict=True)
         _LOGGER.debug("Requesting workdata for sn=%s fields=%s", sn, fields)
 
