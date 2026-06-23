@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🐛 Fixes
+
+- `energy_today` and `energy_total` now sum production across all inverters in
+  the plant instead of reporting only the first inverter in the API response.
+  On multi-inverter plants these sensors were previously under-reporting (e.g.
+  showing one inverter's ~7.5 kWh instead of the plant total). Flow-derived
+  values (PV, load, grid, battery, SOC) were already plant-wide and are
+  unchanged.
+
 ## [5.2.0] - 2026-01-30
 
 ### ✨ Improvements
