@@ -436,9 +436,21 @@ class SolArkCloudAPI:
 
         payload = self._build_common_setting_payload(sn, settings_data)
         payload.update(updates)
-        result = await self._request(
-            "POST", f"/api/v1/common/setting/{sn}/set", payload
-        )
+        try:
+            result = await self._request(
+                "POST", f"/api/v1/common/setting/{sn}/set", payload
+            )
+        except SolArkCloudAPIError:
+            # Surface the exact register/value that was rejected. The /set
+            # endpoint reports failures generically (HTTP 500 or code=1 "Fail")
+            # without echoing the offending field, so log what we sent.
+            _LOGGER.error(
+                "set_common_settings failed for sn=%s. Requested updates: %s | full payload: %s",
+                sn,
+                updates,
+                payload,
+            )
+            raise
         self._record_pending_settings(updates, settings_data)
         return result
 

@@ -23,6 +23,7 @@ from .const import (
     DEFAULT_API_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_ALLOW_WRITE,
+    LEGACY_API_URLS,
     PLATFORMS,
 )
 
@@ -316,6 +317,20 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "Cleaned up %d orphaned entities from old platforms", removed_count
             )
         version = 3
+
+    if version < 4:
+        # v4: SolArk migrated accounts to the p2 cluster. The old api_url still
+        # serves reads but rejects all settings writes (HTTP 500 / code=1).
+        # Repoint any entry still on a legacy host at the new default.
+        current_api_url = data.get(CONF_API_URL)
+        if current_api_url in LEGACY_API_URLS:
+            data[CONF_API_URL] = DEFAULT_API_URL
+            _LOGGER.info(
+                "Migrated api_url from %s to %s (p2 cluster)",
+                current_api_url,
+                DEFAULT_API_URL,
+            )
+        version = 4
 
     hass.config_entries.async_update_entry(
         entry, data=data, options=options, version=version
