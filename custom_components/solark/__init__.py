@@ -10,9 +10,6 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.core import ServiceCall
-from homeassistant.exceptions import HomeAssistantError
-
 from .const import (
     DOMAIN,
     CONF_USERNAME,
@@ -28,7 +25,6 @@ from .const import (
     DEFAULT_ALLOW_WRITE,
     PLATFORMS,
 )
-from .services import CONFIGURE_INVERTER_SCHEMA, build_api_updates
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -177,6 +173,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register the configure_inverter service
+    from homeassistant.core import ServiceCall
+    from homeassistant.exceptions import HomeAssistantError
+
+    from .services import CONFIGURE_INVERTER_SCHEMA, build_api_updates
+
     async def handle_configure_inverter(call: ServiceCall) -> None:
         """Handle the configure_inverter service call."""
         # Check write access

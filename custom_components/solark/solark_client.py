@@ -704,13 +704,19 @@ class SolArkCloudAPI:
             _LOGGER.warning("Unable to fetch workdata: %s", exc)
         self._mark_fetch("workdata", workdata_ok)
 
-        # Fetch fresh inverter data for energy values (not cached)
+        # Fetch fresh inverter data for energy values (not cached).
+        # A plant can contain multiple inverters; sum each inverter's daily
+        # and lifetime production so the totals reflect the whole plant rather
+        # than whichever inverter happens to be first in the API response.
         try:
             inverters = await self._fetch_inverters()
             if inverters:
-                first = inverters[0]
-                etoday = self._safe_float(first.get("etoday"))
-                etotal = self._safe_float(first.get("etotal"))
+                etoday = sum(
+                    self._safe_float(inv.get("etoday")) for inv in inverters
+                )
+                etotal = sum(
+                    self._safe_float(inv.get("etotal")) for inv in inverters
+                )
                 if etoday > 0:
                     combined["energyToday"] = etoday
                 if etotal > 0:
