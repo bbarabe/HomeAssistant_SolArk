@@ -33,7 +33,7 @@ Copy it to `solark_secrets.json` and fill in your values:
   "password": "your-password",
   "plant_id": "YOUR_PLANT_ID",
   "base_url": "https://www.mysolark.com",
-  "api_url": "https://ecsprod-api-new.solarkcloud.com"
+  "api_url": "https://p2.api.solarkcloud.com"
 }
 ```
 
