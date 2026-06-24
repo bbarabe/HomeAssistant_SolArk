@@ -701,13 +701,26 @@ class SolArkCloudAPI:
                 master_sn = await self._get_master_sn()
                 if master_sn:
                     workdata = await self.get_workdata(
-                        master_sn, fields=["AcRelayStatus(NA)/194"]
+                        master_sn, fields=["AcRelayStatus/194"]
                     )
             if workdata:
                 records = workdata.get("record", [])
                 if records and isinstance(records, list) and len(records) > 0:
                     latest = records[0]
-                    ac_relay = latest.get("AcRelayStatus(NA)/194")
+                    # Match by the stable register suffix (/194) rather than the
+                    # full column name: the p2 cluster returns the column as
+                    # "AcRelayStatus/194" while the old ecsprod host included a
+                    # "(NA)" unit annotation ("AcRelayStatus(NA)/194"). Keying off
+                    # the register number survives that annotation changing again.
+                    ac_relay = next(
+                        (
+                            v
+                            for k, v in latest.items()
+                            if k.split("(")[0].endswith("AcRelayStatus")
+                            or k.endswith("/194")
+                        ),
+                        None,
+                    )
                     if ac_relay is not None:
                         combined["acRelayStatus"] = ac_relay
                         workdata_ok = True
