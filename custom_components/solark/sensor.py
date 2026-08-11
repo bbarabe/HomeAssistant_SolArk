@@ -217,9 +217,14 @@ def _work_mode_to_str(val: Any) -> str:
     if val is None:
         return "Unknown"
     try:
-        return WORK_MODE_REVERSE.get(int(val), f"Unknown ({val})")
+        mode = WORK_MODE_REVERSE.get(int(val))
     except (TypeError, ValueError):
         return "Unknown"
+    if mode is None:
+        # Must stay within the ENUM options list or HA rejects the state.
+        _LOGGER.debug("Unmapped sysWorkMode value: %r", val)
+        return "Unknown"
+    return mode
 
 
 def _energy_mode_to_str(val: Any) -> str:
@@ -227,9 +232,13 @@ def _energy_mode_to_str(val: Any) -> str:
     if val is None:
         return "Unknown"
     try:
-        return ENERGY_MODE_REVERSE.get(int(val), f"Unknown ({val})")
+        mode = ENERGY_MODE_REVERSE.get(int(val))
     except (TypeError, ValueError):
         return "Unknown"
+    if mode is None:
+        _LOGGER.debug("Unmapped energyMode value: %r", val)
+        return "Unknown"
+    return mode
 
 
 def _coerce_bool(value: Any) -> bool:
