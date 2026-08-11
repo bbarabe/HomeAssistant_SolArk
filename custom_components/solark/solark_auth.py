@@ -8,7 +8,7 @@ from typing import Optional
 import aiohttp
 
 from .solark_errors import SolArkCloudAPIError
-from .solark_logging import get_logger
+from .solark_logging import _redact_secret_text, get_logger
 
 _LOGGER = get_logger(__name__)
 
@@ -68,7 +68,12 @@ class SolArkAuth:
             "client_id": "csp-web",
         }
 
-        _LOGGER.debug("Attempting OAuth login at %s", url)
+        # Never log username/password — only the endpoint and redacted shape.
+        _LOGGER.debug(
+            "Attempting OAuth login at %s payload_keys=%s",
+            url,
+            sorted(payload.keys()),
+        )
 
         try:
             async with self._session.post(
@@ -81,20 +86,22 @@ class SolArkAuth:
                 _LOGGER.debug(
                     "OAuth login response HTTP %s, body: %s",
                     resp.status,
-                    text[:1000],
+                    _redact_secret_text(text[:1000]),
                 )
                 try:
                     resp.raise_for_status()
                 except aiohttp.ClientResponseError as exc:
                     raise SolArkCloudAPIError(
-                        f"OAuth login HTTP {resp.status}: {text[:500]}"
+                        f"OAuth login HTTP {resp.status}: "
+                        f"{_redact_secret_text(text[:500])}"
                     ) from exc
 
                 try:
                     result = await resp.json()
                 except Exception as exc:  # noqa: BLE001
                     raise SolArkCloudAPIError(
-                        f"OAuth login invalid JSON: {text[:200]}"
+                        f"OAuth login invalid JSON: "
+                        f"{_redact_secret_text(text[:200])}"
                     ) from exc
 
         except asyncio.TimeoutError as exc:  # noqa: BLE001
@@ -135,7 +142,11 @@ class SolArkAuth:
         }
         payload = {"username": self.username, "password": self.password}
 
-        _LOGGER.debug("Attempting legacy login at %s", url)
+        _LOGGER.debug(
+            "Attempting legacy login at %s payload_keys=%s",
+            url,
+            sorted(payload.keys()),
+        )
 
         try:
             async with self._session.post(
@@ -148,20 +159,22 @@ class SolArkAuth:
                 _LOGGER.debug(
                     "Legacy login response HTTP %s, body: %s",
                     resp.status,
-                    text[:1000],
+                    _redact_secret_text(text[:1000]),
                 )
                 try:
                     resp.raise_for_status()
                 except aiohttp.ClientResponseError as exc:
                     raise SolArkCloudAPIError(
-                        f"Legacy login HTTP {resp.status}: {text[:500]}"
+                        f"Legacy login HTTP {resp.status}: "
+                        f"{_redact_secret_text(text[:500])}"
                     ) from exc
 
                 try:
                     result = await resp.json()
                 except Exception as exc:  # noqa: BLE001
                     raise SolArkCloudAPIError(
-                        f"Legacy login invalid JSON: {text[:200]}"
+                        f"Legacy login invalid JSON: "
+                        f"{_redact_secret_text(text[:200])}"
                     ) from exc
 
         except asyncio.TimeoutError as exc:  # noqa: BLE001
@@ -193,14 +206,16 @@ class SolArkAuth:
             await self._oauth_login()
             return True
         except SolArkCloudAPIError as exc:
-            _LOGGER.debug("OAuth login failed: %s", exc)
-            errors.append(f"oauth: {exc}")
+            safe = _redact_secret_text(str(exc))
+            _LOGGER.debug("OAuth login failed: %s", safe)
+            errors.append(f"oauth: {safe}")
 
         try:
             await self._legacy_login()
             return True
         except SolArkCloudAPIError as exc:
-            _LOGGER.debug("Legacy login failed: %s", exc)
-            errors.append(f"legacy: {exc}")
+            safe = _redact_secret_text(str(exc))
+            _LOGGER.debug("Legacy login failed: %s", safe)
+            errors.append(f"legacy: {safe}")
 
         raise SolArkCloudAPIError("All login methods failed: " + " | ".join(errors))
