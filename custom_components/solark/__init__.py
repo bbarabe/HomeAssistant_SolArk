@@ -23,8 +23,8 @@ from .const import (
     DEFAULT_API_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_ALLOW_WRITE,
-    LEGACY_API_URLS,
     PLATFORMS,
+    normalize_solark_urls,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -319,16 +319,22 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         version = 3
 
     if version < 4:
-        # v4: SolArk migrated accounts to the p2 cluster. The old api_url still
-        # serves reads but rejects all settings writes (HTTP 500 / code=1).
-        # Repoint any entry still on a legacy host at the new default.
-        current_api_url = data.get(CONF_API_URL)
-        if current_api_url in LEGACY_API_URLS:
-            data[CONF_API_URL] = DEFAULT_API_URL
+        # v4: SolArk migrated accounts to the p2 cluster and moved the portal
+        # off mysolark.com. The old api_url still serves reads but rejects all
+        # settings writes (HTTP 500 / code=1). Repoint any entry still on a
+        # retired host at the current defaults.
+        old_base_url = data.get(CONF_BASE_URL, DEFAULT_BASE_URL)
+        old_api_url = data.get(CONF_API_URL, DEFAULT_API_URL)
+        new_base_url, new_api_url = normalize_solark_urls(old_base_url, old_api_url)
+        if (new_base_url, new_api_url) != (old_base_url, old_api_url):
+            data[CONF_BASE_URL] = new_base_url
+            data[CONF_API_URL] = new_api_url
             _LOGGER.info(
-                "Migrated api_url from %s to %s (p2 cluster)",
-                current_api_url,
-                DEFAULT_API_URL,
+                "Migrated SolArk hosts: base_url %s -> %s, api_url %s -> %s",
+                old_base_url,
+                new_base_url,
+                old_api_url,
+                new_api_url,
             )
         version = 4
 
