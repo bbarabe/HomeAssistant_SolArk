@@ -1110,15 +1110,35 @@ class SolArkCloudAPI:
         # ----- Retain last-known values through brief data gaps -----
         now = datetime.utcnow()
 
-        # Energy counters: retain last-known value when API returns zero/missing,
-        # so TOTAL_INCREASING sensors don't briefly drop and cause bogus spikes.
-        for key in ("energy_today", "energy_total"):
+        # Energy counters: retain last-known value when the API returns
+        # zero/missing, so TOTAL_INCREASING sensors don't briefly drop and
+        # cause bogus spikes. Retention is bounded by the same window as the
+        # status keys: a glitch lasts a poll cycle or two, while a sustained
+        # zero is real (the counters reset at the provider's midnight). Once
+        # the window expires, a zero the API actually reported is accepted
+        # for energy_today (a genuine daily reset); energy_total can never
+        # legitimately be zero, so it goes unknown instead of stale-forever.
+        for key, raw_keys in (
+            ("energy_today", ("energyToday", "etoday")),
+            ("energy_total", ("energyTotal", "etotal")),
+        ):
             if key in sensors and sensors[key] > 0:
                 self._last_status[key] = (sensors[key], now)
-            elif key in self._last_status:
-                cached_value, _ = self._last_status[key]
-                sensors[key] = cached_value
-                _LOGGER.debug("Retaining cached %s=%s", key, cached_value)
+                continue
+            if key in self._last_status:
+                cached_value, cached_time = self._last_status[key]
+                age = (now - cached_time).total_seconds()
+                if age <= self._status_retain_seconds:
+                    sensors[key] = cached_value
+                    _LOGGER.debug(
+                        "Retaining cached %s=%s (age %ds)", key, cached_value, age
+                    )
+                    continue
+                del self._last_status[key]
+            if key == "energy_today" and any(k in data for k in raw_keys):
+                sensors[key] = self._safe_float(
+                    data.get(raw_keys[0], data.get(raw_keys[1]))
+                )
         for key in ("grid_status", "generator_status", "ac_relay_status"):
             if key in sensors and sensors[key] != "Unknown":
                 # Got a real value — cache it
