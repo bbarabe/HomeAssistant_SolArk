@@ -187,6 +187,12 @@ async def _run(args: argparse.Namespace) -> int:
     if not any(requested.values()) and not args.set_slot:
         for key in requested:
             requested[key] = True
+        if not args.inverter_sn:
+            # The run-everything default must stay runnable with credentials
+            # alone: skip the operations that need --inverter-sn instead of
+            # erroring out before printing anything.
+            requested["settings"] = False
+            requested["workdata"] = False
 
     requires_plant_id = any(
         [
