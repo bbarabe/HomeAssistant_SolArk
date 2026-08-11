@@ -46,7 +46,9 @@ All notable changes to this project will be documented in this file.
   endpoint — the inverter list, `/api/v1/plants`, and the plant's own
   year-by-year PV history all agree with each other to within ~0.4%. Sibling
   fields are fine: `etoday` matches exactly and `emonth` to within 1.0 kWh.
-  Preferring `etotal` would inject a one-time ~22 MWh step into a
+  Independent module-level Tigo monitoring on the same array reports 83100 kWh
+  lifetime, confirming ~82.3–82.6 MWh is correct and `/realtime` `etotal` is
+  ~26% too high. Preferring it would inject a one-time ~22 MWh step into a
   `TOTAL_INCREASING` sensor and corrupt energy dashboard statistics.
   (diverges from upstream `62d0b49`)
 - `energy_today` and `energy_total` now sum production across all inverters in

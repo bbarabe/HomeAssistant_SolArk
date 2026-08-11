@@ -799,14 +799,29 @@ class SolArkCloudAPI:
         agree too -- ``etoday`` matches the inverter sum exactly and
         ``emonth`` lands within 1.0 kWh of the history.
 
-        Its origin is unknown. An earlier revision of this comment guessed
-        "production from retired hardware"; that is contradicted by the
-        year-by-year PV history, which would have to contain those 22 MWh and
-        does not.
+        Independent hardware settles which side is right. Module-level Tigo
+        monitoring on the same array reports 83100 kWh lifetime::
 
-        Preferring ``etotal`` would inject a one-time ~22 MWh jump into an
-        existing TOTAL_INCREASING sensor and corrupt the energy dashboard's
-        long-run statistics, so the per-inverter sum stays primary.
+            Tigo (independent)        83100      --
+            history PV series         82631      -0.6%
+            inverter list sum (used)  82334      -0.9%
+            /realtime etotal         104637     +25.9%
+
+        The inverter sum reading slightly under Tigo is expected -- Tigo
+        measures DC at the modules, inverter ``etotal`` is AC after conversion
+        losses -- so the per-inverter sum is the correct AC production figure
+        and is what feeds the Energy Dashboard's solar source.
+
+        The origin of the 22303.0 is unknown. An earlier revision of this
+        comment guessed "production from retired hardware"; that is
+        contradicted by the year-by-year PV history, which would have to
+        contain those 22 MWh and does not.
+
+        Note the portal's own overview card displays ``etotal`` (104637.5),
+        so the portal contradicts both its own production chart and the
+        physical meter. Matching the card would mean mirroring a known-bad
+        number, and would inject a one-time ~22 MWh jump into an existing
+        TOTAL_INCREASING sensor. The per-inverter sum stays primary.
         """
         await self._auth.ensure_token()
         endpoint = f"/api/v1/plant/{self.plant_id}/realtime"
