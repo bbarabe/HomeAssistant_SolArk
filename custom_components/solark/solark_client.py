@@ -758,7 +758,47 @@ class SolArkCloudAPI:
         except Exception as exc:  # noqa: BLE001
             _LOGGER.debug("Unable to fetch inverter energy stats: %s", exc)
 
+        # Plant realtime is the portal overview source for etoday/etotal. It is
+        # used only to fill gaps the inverter list left: see _get_realtime_data
+        # for why it must not override a good per-inverter sum.
+        if "energyToday" not in combined or "energyTotal" not in combined:
+            try:
+                realtime = await self._get_realtime_data()
+                if realtime:
+                    if "energyToday" not in combined and "etoday" in realtime:
+                        combined["energyToday"] = realtime.get("etoday")
+                    if "energyTotal" not in combined and "etotal" in realtime:
+                        combined["energyTotal"] = realtime.get("etotal")
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.warning("Unable to merge realtime data into live data: %s", exc)
+
         return combined
+
+    async def _get_realtime_data(self) -> Dict[str, Any]:
+        """Fetch plant realtime summary (etoday/etotal/pac).
+
+        Upstream (62d0b49) *prefers* these values over the inverter list. This
+        fork uses them only as a fallback, because the two disagree on
+        lifetime production: measured on plant 118814 the plant figure counts
+        production from hardware no longer in the inverter list (etotal
+        104626.5 kWh vs 82323.5 kWh summed across the two live inverters,
+        while etoday matched exactly at 56.7 kWh). Preferring the plant value
+        would inject a one-time ~22 MWh jump into an existing
+        TOTAL_INCREASING sensor and corrupt the energy dashboard's
+        statistics.
+        """
+        await self._auth.ensure_token()
+        endpoint = f"/api/v1/plant/{self.plant_id}/realtime"
+        try:
+            resp = await self._request("GET", endpoint, {"id": self.plant_id})
+        except SolArkCloudAPIError as exc:  # noqa: BLE001
+            _LOGGER.warning("Realtime request failed: %s", exc)
+            return {}
+
+        data = resp.get("data") if isinstance(resp, dict) else None
+        if isinstance(data, dict):
+            return data
+        return {}
 
     def _mark_fetch(self, component: str, success: bool) -> None:
         """Record the health of a sub-fetch component.
