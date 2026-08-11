@@ -250,13 +250,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .services import CONFIGURE_INVERTER_SCHEMA, build_api_updates
 
     async def handle_configure_inverter(call: ServiceCall) -> None:
-        """Handle the configure_inverter service call."""
-        # Check write access
-        if not allow_write_access:
+        """Handle the configure_inverter service call.
+
+        Everything is resolved from hass.data at call time: a closure over
+        this entry's objects would keep serving a stale api/allow-write
+        snapshot after an options reload, and would KeyError after the entry
+        is removed.
+        """
+        entry_data = next(iter(hass.data.get(DOMAIN, {}).values()), None)
+        if not entry_data:
+            raise HomeAssistantError("SolArk is not set up.")
+
+        if not entry_data.get("allow_write_access"):
             raise HomeAssistantError("Write access is disabled for SolArk.")
 
+        svc_api = entry_data["api"]
+        svc_settings_coordinator = entry_data["settings_coordinator"]
+
         # Get master inverter SN from settings coordinator
-        settings_data = settings_coordinator.data or {}
+        settings_data = svc_settings_coordinator.data or {}
         sn = settings_data.get("sn")
         if not sn:
             raise HomeAssistantError("Master inverter not available.")
@@ -281,15 +293,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
         try:
-            await api.set_common_settings(sn=sn, updates=updates, require_master=True)
+            await svc_api.set_common_settings(
+                sn=sn, updates=updates, require_master=True
+            )
         except Exception as err:
             raise HomeAssistantError(f"Failed to configure inverter: {err}") from err
 
         # Trigger settings refresh
-        refresh_burst = hass.data[DOMAIN][entry.entry_id].get("settings_refresh_burst")
+        refresh_burst = entry_data.get("settings_refresh_burst")
         if refresh_burst:
             await refresh_burst()
-        await settings_coordinator.async_request_refresh()
+        await svc_settings_coordinator.async_request_refresh()
 
     # Only register service once (first entry)
     if not hass.services.has_service(DOMAIN, "configure_inverter"):
@@ -313,6 +327,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         for component in _FETCH_COMPONENT_LABELS:
             ir.async_delete_issue(hass, DOMAIN, f"fetch_failure_{component}")
+        # Last entry gone: the service has nothing left to act on.
+        if not hass.data[DOMAIN] and hass.services.has_service(
+            DOMAIN, "configure_inverter"
+        ):
+            hass.services.async_remove(DOMAIN, "configure_inverter")
     return unload_ok
 
 
