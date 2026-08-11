@@ -443,15 +443,16 @@ class SolArkCloudAPI:
                 "POST", f"/api/v1/common/setting/{sn}/set", payload
             )
         except SolArkCloudAPIError:
-            # Surface the exact register/value that was rejected. The /set
-            # endpoint reports failures generically (HTTP 500 or code=1 "Fail")
-            # without echoing the offending field, so log what we sent.
+            # Surface the register/values that were rejected. The /set
+            # endpoint reports failures generically (HTTP 500 or code=1
+            # "Fail") without echoing the offending field. The full payload
+            # is debug-only: it is large and mostly unrelated settings.
             _LOGGER.error(
-                "set_common_settings failed for sn=%s. Requested updates: %s | full payload: %s",
+                "set_common_settings failed for sn=%s. Requested updates: %s",
                 sn,
                 updates,
-                payload,
             )
+            _LOGGER.debug("Full rejected payload for sn=%s: %s", sn, payload)
             raise
         self._record_pending_settings(updates, settings_data)
         return result
