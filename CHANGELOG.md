@@ -2,128 +2,89 @@
 
 All notable changes to this project will be documented in this file.
 
-> **Note on version numbering.** This fork's 5.1.x/5.2.x releases and upstream's
-> 5.0.1/5.0.2 were developed in parallel, so the numbers below are not in a
-> single chronological order. Upstream 5.0.1 (2026-08-02) and 5.0.2 (2026-08-03)
-> came *after* this fork's 5.2.0 (2026-01-30); their contents were integrated
-> into this fork's Unreleased section, which credits the originating commits.
+## [5.3.0] - 2026-08-11
 
-## [Unreleased]
+Everything below is relative to 5.0.2 and includes all of its changes. Existing
+installs migrate automatically — no need to remove and re-add the integration,
+and no entity IDs change.
 
-### 🔒 Security
+### ✨ New Features
 
-- Username, password and OAuth tokens are redacted from debug/error logs. The
-  login handlers previously logged full response bodies, which contain
-  `access_token` and `refresh_token`. (upstream `d336443`)
-- Diagnostics downloads now redact token fields as well as credentials.
-  (upstream `d336443`)
-
-### ✨ Improvements
-
-- **Auto-discover API URL** — the integration reads `VUE_APP_BASE_API` from the
-  Sol-Ark portal frontend at startup, so a future API host migration is picked
-  up automatically instead of needing a code change. Toggleable during setup and
-  in **Configure**; the manual **API URL** remains as override and as fallback
-  when discovery fails. (upstream `11072e0`, `6ed5b09`)
-- Retired Sol-Ark hosts are rewritten to current defaults on upgrade. This now
-  covers `base_url` (`mysolark.com` → `www.solarkcloud.com`) as well as
-  `api_url`, and additionally handles `ecsprod-api.solarkcloud.com`.
-  (upstream `11072e0`, `6ed5b09`)
+- **Inverter configuration visibility** — the System Work Mode programming is
+  now exposed as read-only diagnostic sensors: Work Mode, Energy Pattern,
+  Solar Sell, Time-Of-Use enable, the six TOU slots (time, power, battery SOC,
+  charge flags), day-of-week TOU flags, Max Solar Power, Max Sell Power, and
+  Zero Export Power.
+- **`solark.configure_inverter` action** — writes System Work Mode settings
+  (work mode, energy pattern, TOU slots, sell/charge toggles, power limits) to
+  the master inverter. Gated behind a new **Allow write access** config option
+  (default **off**); with it off the integration is strictly read-only.
+  Settings polling briefly accelerates after a write while the cloud
+  propagates the change.
+- **CLI tool** — `python -m solark_cli` exercises the same API client from the
+  command line: plant data, raw endpoint dumps, settings read, gateway list,
+  and TOU slot updates. See `CLI.md`. Credentials come from a
+  `solark_secrets.json` file (template provided, gitignored).
+- **New sensors**:
+  - AC Relay Status — reliable on/off-grid detection straight from the
+    inverter's relay register.
+  - Grid Status and Generator Status.
+  - Battery Charge Power / Battery Discharge Power.
+  - Battery Charge Energy / Battery Discharge Energy, Grid Import Energy /
+    Grid Export Energy, and Home Consumption Energy — native trapezoidal
+    integration of the corresponding power sensors, ready for the Energy
+    dashboard.
 
 ### 🐛 Fixes
 
-- The legacy login fallback used a hardcoded `api.solarkcloud.com` instead of
-  the configured `api_url`, so it would have kept talking to a retired host
-  after the p2 migration. (upstream `d336443`)
-- PV power now includes `minPower` (microinverter / AC-coupled PV) from the
-  energy flow endpoint. (upstream `62d0b49`)
-- Placeholder MPPT volt/current ramps returned by some `dy/store` payloads are
-  no longer summed into PV power as if they were live string data. The MPPT sum
-  is now a true last resort, used only when the flow endpoint reports no PV.
-  (upstream `62d0b49`)
-- Battery SOC only falls back to `curCap`/`batteryCap` when `curCap` is actually
-  populated; a missing `curCap` previously reported a confident 0%.
-  (upstream `62d0b49`)
-- The plant `/realtime` endpoint is used as an energy fallback when the inverter
-  list yields nothing. Unlike upstream, it does **not** override the
-  per-inverter sum. Its `etoday` agrees with that sum, but its `etotal` ran
-  ~26% high on the system this was developed against, carrying a large fixed
-  offset that appears in no other endpoint — the inverter list,
-  `/api/v1/plants`, and the plant's own year-by-year PV history all agree with
-  each other to within ~1%. Which side is correct was settled with an
-  independent meter: module-level Tigo monitoring on the same array agreed with
-  the per-inverter sum, not with `etotal`. Preferring `etotal` would mirror a
-  wrong number and inject a one-time step into a `TOTAL_INCREASING` sensor,
-  corrupting energy dashboard statistics. (diverges from upstream `62d0b49`)
-- `energy_today` and `energy_total` now sum production across all inverters in
-  the plant instead of reporting only the first inverter in the API response.
-  On multi-inverter plants these sensors were previously under-reporting (e.g.
-  showing one inverter's ~7.5 kWh instead of the plant total). Flow-derived
-  values (PV, load, grid, battery, SOC) were already plant-wide and are
-  unchanged.
+- **Multi-inverter plants**: `energy_today` and `energy_total` now sum
+  production across every inverter in the plant instead of reporting only the
+  first one the API returns.
+- The plant `/realtime` endpoint is used as an energy **fallback** when the
+  inverter list yields nothing, not as the preferred source (diverges from
+  5.0.2). Its `etoday` agrees with the per-inverter sum, but its `etotal`
+  carries a large fixed offset on at least some migrated systems — confirmed
+  against the plant's own year-by-year history and independent module-level
+  monitoring. Preferring it would inject a one-time step into a
+  `TOTAL_INCREASING` sensor and corrupt Energy dashboard statistics.
+- Spurious zero readings for `energy_today`/`energy_total` during API glitches
+  are filtered out instead of being recorded as real drops.
+- Energy values refresh on every poll cycle (previously they could go stale
+  between date rollovers).
+- Date-based API queries (work data, flow data) use the Home Assistant
+  configured timezone instead of UTC, fixing wrong-day results in evening
+  hours for western timezones.
 
-## [5.2.0] - 2026-01-30
+### 🛡️ Resilience
 
-### ✨ Improvements
+- Brief cloud API gaps retain last-known status sensor values instead of
+  flapping to unknown; a total outage marks entities unavailable rather than
+  recording zeros into long-term statistics.
+- Prolonged fetch failures raise a Repair issue in Home Assistant so the
+  problem is visible without digging through logs.
+- Transient cloud failures during Home Assistant startup retry automatically
+  instead of leaving the integration failed until manual reload.
+- Settings sensors degrade gracefully on accounts that can read telemetry but
+  not inverter settings.
 
-- Added System Work Mode configuration entities (numbers, switches, time).
-- Added write-access toggle in the config flow (disabled by default).
-- Settings are fetched/written only against the master inverter.
-- Master inverter SN is cached in memory to reduce repeated lookups.
-- Options updates now reload the integration so write access toggles take effect.
-- Settings entities now optimistically show new values briefly and retry refresh
-  to handle API propagation delays.
-- Work Mode and Energy Pattern are now select entities with labeled options.
-- Added Time Of Use day-of-week switches.
-- Added Home Consumption Energy sensor (integrated from load power).
-- Added config entry migration to seed new options (allow write access).
-- Grid power entity ID is now normalized to `sensor.solark_grid_power` after
-  re-adding the integration.
-- Settings polling now briefly accelerates after a write (about every 15
-  seconds for up to a minute) while pending changes exist.
+### 🔧 Technical
+
+- The API client is extracted into an HA-independent module
+  (`solark_client.py`, with `solark_auth.py` for OAuth/legacy login and
+  `solark_logging.py` for secret redaction). `api.py` remains as a
+  compatibility shim re-exporting the same public names.
+- Config entry migration runs automatically (v1 → v4): seeds the write-access
+  option, cleans up registry entries from removed platforms, and rewrites
+  retired SolArk hosts to the current defaults.
+- Master inverter (equipMode 1) is resolved once and cached; settings
+  reads/writes always target it.
 
 ### 📚 Documentation
 
-- Added configuration write-access guidance.
-
-## [5.1.1] - 2026-01-30
-
-### ✨ Improvements
-
-- Added native battery charge/discharge power sensors:
-  - `sensor.solark_battery_charge_power`
-  - `sensor.solark_battery_discharge_power`
-- Added native battery charge/discharge energy sensors using the integration
-  method (trapezoidal):
-  - `sensor.solark_battery_charge_energy`
-  - `sensor.solark_battery_discharge_energy`
-
-### 📚 Documentation
-
-- Updated Energy dashboard setup to use built-in battery energy sensors.
-- Updated sensor lists and counts in README and Quick Start.
-- Fixed options flow initialization for older Home Assistant versions.
-
-## [5.1.0] - 2026-01-29
-
-### ✨ Improvements
-
-- Added native energy sensors for grid import/export:
-  - `sensor.solark_grid_import_energy`
-  - `sensor.solark_grid_export_energy`
-- Added status sensors:
-  - `sensor.solark_grid_status`
-  - `sensor.solark_generator_status`
-- Grid import/export now derives from `gridOrMeterPower` + direction flags when
-  no CT meter is present.
-- Battery power sign is inferred from flow direction flags (`toBat`/`batTo`).
-- Logging now respects Home Assistant's logging configuration (no forced file
-  logging).
-
-### 📚 Documentation
-
-- Updated Energy dashboard setup to use built-in energy sensors.
-- Updated sensor lists and troubleshooting guidance.
+- New `CLI.md` (CLI usage) and expanded README sensor/action tables.
+- Energy dashboard guide updated for the built-in energy sensors.
+- Quick start updated for the current portal (`www.solarkcloud.com`) and
+  auto-discovery.
 
 ## [5.0.2] - 2026-08-03
 
