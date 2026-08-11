@@ -70,9 +70,9 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 
 ### 1. Get Your Plant ID
 
-1. Log into [mysolark.com](https://www.mysolark.com)
+1. Log into [solarkcloud.com](https://www.solarkcloud.com) (`mysolark.com` still redirects here)
 2. Navigate to your system
-3. Check the URL: `https://www.mysolark.com/plant/12345`
+3. Check the URL: `https://www.solarkcloud.com/plant/12345`
 4. Your Plant ID is `12345`
 
 ### 2. Add Integration
@@ -83,10 +83,27 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
    - **Username**: Your Sol-Ark email
    - **Password**: Your Sol-Ark password
    - **Plant ID**: From step 1
+   - **Auto-discover API URL from portal**: on (recommended — see below)
    - **Scan Interval**: 30 (seconds)
 4. Click **SUBMIT**
 
-### 3. Verify
+### 3. API Endpoint Discovery
+
+Sol-Ark has moved its cloud API between hosts more than once (most recently
+from `ecsprod-api-new.solarkcloud.com` to `p2.api.solarkcloud.com`), which
+breaks integrations pinned to a fixed host.
+
+With **Auto-discover API URL** enabled (the default), the integration reads the
+API root the web portal itself uses out of the portal's frontend bundle at each
+startup, so a future host move is picked up automatically. The resolved URL is
+stored on the config entry and shown in **Configure**.
+
+If discovery fails — no internet, portal layout change — the integration logs a
+warning and falls back to the **API URL** field, so it keeps working. Turn
+auto-discover off to pin that field yourself. Config entries created against
+retired hosts are rewritten to the current defaults on upgrade.
+
+### 4. Verify
 
 - Go to **Developer Tools** → **States**
 - Search `solark`
