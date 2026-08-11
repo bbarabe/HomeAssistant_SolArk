@@ -109,7 +109,7 @@ python -m solark_cli --secrets solark_secrets.json --combined --parsed
 Fetch live data for a specific inverter:
 
 ```bash
-python -m solark_cli --secrets solark_secrets.json --live --inverter-sn 2201064650
+python -m solark_cli --secrets solark_secrets.json --live --inverter-sn 2XXXXXXXXX
 ```
 
 Fetch plant flow data only:
@@ -124,7 +124,7 @@ Update slot 2 to sell at 18:00 with 3000W:
 python -m solark_cli \
   --secrets solark_secrets.json \
   --set-slot \
-  --inverter-sn 2201064650 \
+  --inverter-sn 2XXXXXXXXX \
   --slot 2 \
   --slot-time 18:00 \
   --slot-pac 3000 \
