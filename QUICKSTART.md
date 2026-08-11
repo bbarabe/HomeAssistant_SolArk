@@ -28,8 +28,8 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 ### Step 1: Install via HACS
 
 1. Open Home Assistant
-2. Go to **HACS** â†’ **Integrations**
-3. Click **â‹®** â†’ **Custom repositories**
+2. Go to **HACS** → **Integrations**
+3. Click **⋮** → **Custom repositories**
 4. Add: `https://github.com/HammondAutomationHub/HomeAssistant_SolArk`
 5. Category: **Integration**
 6. Click **Download** on "SolArk Cloud"
@@ -45,7 +45,7 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 
 ### Step 3: Add Integration
 
-1. Go to **Settings** â†’ **Devices & Services**
+1. Go to **Settings** → **Devices & Services**
 2. Click **+ ADD INTEGRATION**
 3. Search: **SolArk Cloud**
 4. Enter:
@@ -64,7 +64,7 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 
 ### Step 4: Verify Sensors Work
 
-1. Go to **Developer Tools** â†’ **States**
+1. Go to **Developer Tools** → **States**
 2. Search for: `solark`
 3. You should see 18 sensors with live data
 4. If they show "unavailable", wait 30 seconds for first update
@@ -101,10 +101,10 @@ python -m solark_cli --secrets solark_secrets.json --combined --parsed
 **Easy Way:**
 1. Download `dashboards/solark_flow.yaml` from the GitHub repo
 2. Copy all the contents
-3. Go to **Settings** â†’ **Dashboards** â†’ **+ ADD DASHBOARD**
+3. Go to **Settings** → **Dashboards** → **+ ADD DASHBOARD**
 4. Name it "SolArk"
-5. After creation, click **â‹®** â†’ **Edit Dashboard**
-6. Click **â‹®** â†’ **Raw configuration editor**
+5. After creation, click **⋮** → **Edit Dashboard**
+6. Click **⋮** → **Raw configuration editor**
 7. Delete everything and paste the copied YAML
 8. Click **SAVE**
 
@@ -124,12 +124,13 @@ Then restart HA and refresh your browser (Ctrl+Shift+R).
 ### "No sensors appearing"
 - Restart Home Assistant completely
 - Wait 30-60 seconds after restart
-- Check **Settings** â†’ **System** â†’ **Logs** for errors
+- Check **Settings** → **System** → **Logs** for errors
 
 ### "Grid power entity ID looks wrong"
-- The net grid power entity should be `sensor.solark_grid_power`.
-- If you see `sensor.solark_grid_power_net`, reload the integration or restart
-  Home Assistant so the entity registry rename runs.
+- Fresh installs name the net grid power entity `sensor.solark_grid_power`.
+- Upgraded installs may have `sensor.solark_grid_power_net`; the integration
+  keeps existing entity ids so automations are never broken. Rename it in
+  **Settings** → **Devices & Services** → **Entities** if you prefer.
 
 ### "Dashboard is blank"
 - Make sure you installed Mushroom Cards from HACS
@@ -172,4 +173,4 @@ Once working, you can:
 - Build custom dashboards with your data
 - Compare solar production vs consumption
 
-Enjoy your Sol-Ark monitoring! ðŸŒžðŸ”‹
+Enjoy your Sol-Ark monitoring! 🌞🔋
