@@ -684,11 +684,16 @@ class SolArkCloudAPI:
                     "gridOrMeterPower",
                     "loadOrEpsPower",
                     "soc",
+                    "minPower",
+                    "genPower",
                     "gridTo",
                     "toGrid",
                     "toBat",
                     "batTo",
+                    "existsMin",
+                    "microOn",
                     "existsMeter",
+                    "existsGen",
                     "genOn",
                 ):
                     if key in flow_data:
@@ -834,6 +839,19 @@ class SolArkCloudAPI:
         except (TypeError, ValueError):
             return 0.0
 
+    def _mppt_looks_like_placeholder(self, data: Dict[str, Any]) -> bool:
+        """Detect the fixed volt/current ramp seen in some dy/store payloads."""
+        currents: list[float] = []
+        for i in range(1, 13):
+            if data.get(f"current{i}") is None and data.get(f"volt{i}") is None:
+                continue
+            currents.append(self._safe_float(data.get(f"current{i}")))
+        if len(currents) < 4:
+            return False
+        # Portal placeholder pattern: 0, 1.5, 3.0, 4.5, ...
+        expected = [1.5 * i for i in range(len(currents))]
+        return all(abs(a - b) < 0.01 for a, b in zip(currents, expected))
+
     def parse_plant_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Map combined API fields to sensor values."""
         if not isinstance(data, dict):
@@ -859,27 +877,34 @@ class SolArkCloudAPI:
             sensors["battery_soc"] = self._safe_float(data.get("soc"))
 
         if "battery_soc" not in sensors:
+            # Only use the capacity ratio when curCap is actually populated:
+            # a missing curCap would otherwise report a confident 0%.
             cur_cap = self._safe_float(data.get("curCap"))
             batt_cap = self._safe_float(data.get("batteryCap"))
-            if batt_cap > 0:
+            if cur_cap > 0 and batt_cap > 0:
                 sensors["battery_soc"] = (cur_cap / batt_cap) * 100.0
 
-        # ----- PV power -----
-        if "pvPower" in data:
-            sensors["pv_power"] = self._safe_float(data.get("pvPower"))
-
-        pv_sum = 0.0
-        for i in range(1, 13):
-            v_raw = data.get(f"volt{i}")
-            c_raw = data.get(f"current{i}")
-            if v_raw is None and c_raw is None:
-                continue
-            v = self._safe_float(v_raw)
-            c = self._safe_float(c_raw)
-            pv_sum += v * c
-
-        if "pv_power" not in sensors and pv_sum != 0.0:
-            sensors["pv_power"] = pv_sum
+        # ----- PV power (string PV + micro/min inverter contribution) -----
+        has_flow_pv = "pvPower" in data or "minPower" in data
+        if has_flow_pv:
+            pv_power = self._safe_float(data.get("pvPower"))
+            min_power = self._safe_float(data.get("minPower"))
+            if data.get("existsMin") or data.get("microOn") or min_power:
+                pv_power += min_power
+            sensors["pv_power"] = pv_power
+        elif not self._mppt_looks_like_placeholder(data):
+            # Last resort only: live MPPT strings (skip known placeholder ramp).
+            pv_sum = 0.0
+            saw_mppt = False
+            for i in range(1, 13):
+                v_raw = data.get(f"volt{i}")
+                c_raw = data.get(f"current{i}")
+                if v_raw is None and c_raw is None:
+                    continue
+                saw_mppt = True
+                pv_sum += self._safe_float(v_raw) * self._safe_float(c_raw)
+            if saw_mppt and pv_sum != 0.0:
+                sensors["pv_power"] = pv_sum
 
         # ----- Battery power -----
         if "battPower" in data:
