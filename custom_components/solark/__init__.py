@@ -17,15 +17,18 @@ from .const import (
     CONF_PLANT_ID,
     CONF_BASE_URL,
     CONF_API_URL,
+    CONF_AUTO_DISCOVER_API,
     CONF_SCAN_INTERVAL,
     CONF_ALLOW_WRITE,
     DEFAULT_BASE_URL,
     DEFAULT_API_URL,
+    DEFAULT_AUTO_DISCOVER_API,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_ALLOW_WRITE,
     PLATFORMS,
     normalize_solark_urls,
 )
+from .discovery import discover_api_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +75,32 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
+async def _resolve_urls(hass: HomeAssistant, entry: ConfigEntry) -> tuple[str, str, bool]:
+    """Normalize hosts and optionally rediscover the API base URL."""
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+    base_url = entry.data.get(CONF_BASE_URL, DEFAULT_BASE_URL)
+    api_url = entry.data.get(CONF_API_URL, DEFAULT_API_URL)
+    auto_discover = entry.options.get(
+        CONF_AUTO_DISCOVER_API,
+        entry.data.get(CONF_AUTO_DISCOVER_API, DEFAULT_AUTO_DISCOVER_API),
+    )
+    base_url, api_url = normalize_solark_urls(base_url, api_url)
+
+    if auto_discover:
+        session = async_get_clientsession(hass)
+        discovered = await discover_api_url(session, base_url)
+        if discovered:
+            api_url = discovered
+        else:
+            _LOGGER.warning(
+                "SolArk API auto-discovery failed; using %s",
+                api_url,
+            )
+
+    return base_url, api_url, bool(auto_discover)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SolArk from a config entry."""
     from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -87,8 +116,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     plant_id = entry.data[CONF_PLANT_ID]
-    base_url = entry.data.get(CONF_BASE_URL, DEFAULT_BASE_URL)
-    api_url = entry.data.get(CONF_API_URL, DEFAULT_API_URL)
+    base_url, api_url, auto_discover = await _resolve_urls(hass, entry)
+
+    # Persist resolved hosts / discovery flag so the UI and diagnostics stay
+    # current. Safe to do here: the update listener is not registered until the
+    # end of this function, so this cannot trigger a reload loop.
+    new_data = {
+        **entry.data,
+        CONF_BASE_URL: base_url,
+        CONF_API_URL: api_url,
+        CONF_AUTO_DISCOVER_API: auto_discover,
+    }
+    if dict(entry.data) != new_data:
+        _LOGGER.info(
+            "Updating SolArk URLs for entry %s to base_url=%s api_url=%s auto_discover=%s",
+            entry.entry_id,
+            base_url,
+            api_url,
+            auto_discover,
+        )
+        hass.config_entries.async_update_entry(entry, data=new_data)
 
     scan_interval = int(
         entry.options.get(
@@ -104,9 +151,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     _LOGGER.debug(
-        "Setting up SolArk entry %s with scan_interval=%s seconds",
+        "Setting up SolArk entry %s with scan_interval=%s seconds base_url=%s api_url=%s",
         entry.entry_id,
         scan_interval,
+        base_url,
+        api_url,
     )
 
     session = async_get_clientsession(hass)
