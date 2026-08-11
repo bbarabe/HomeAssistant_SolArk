@@ -184,15 +184,20 @@ class SolArkOptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 },
             )
-            self.hass.config_entries.async_update_entry(
-                self._config_entry,
-                data={
-                    **self._config_entry.data,
-                    CONF_BASE_URL: base_url,
-                    CONF_API_URL: api_url,
-                    CONF_AUTO_DISCOVER_API: auto_discover,
-                },
-            )
+            # Persist resolved hosts into entry.data only when they actually
+            # changed: async_update_entry fires the update listener (one
+            # reload) and finishing the flow updates options (another), so an
+            # unconditional write reloaded the integration twice per submit.
+            new_data = {
+                **self._config_entry.data,
+                CONF_BASE_URL: base_url,
+                CONF_API_URL: api_url,
+                CONF_AUTO_DISCOVER_API: auto_discover,
+            }
+            if dict(self._config_entry.data) != new_data:
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry, data=new_data
+                )
             return self.async_create_entry(
                 title="",
                 data={
@@ -253,6 +258,3 @@ class SolArkOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=options_schema,
         )
-
-    def _get_config_entry(self) -> config_entries.ConfigEntry:
-        return self._config_entry
