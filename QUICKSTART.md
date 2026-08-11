@@ -37,10 +37,10 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 
 ### Step 2: Get Your Plant ID
 
-1. Go to [mysolark.com](https://www.mysolark.com)
+1. Go to [solarkcloud.com](https://www.solarkcloud.com) (`mysolark.com` still redirects here)
 2. Log in with your Sol-Ark account
 3. Click on your system/plant
-4. Look at the URL: `https://www.mysolark.com/plant/12345`
+4. Look at the URL: `https://www.solarkcloud.com/plant/12345`
 5. Your Plant ID is the number: `12345`
 
 ### Step 3: Add Integration
@@ -52,9 +52,15 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
    - Username: (your Sol-Ark email)
    - Password: (your Sol-Ark password)
    - Plant ID: (from Step 2)
+   - Auto-discover API URL from portal: `true` (leave default)
    - Scan Interval: `30` (leave default)
    - Allow Write Access: `false` (leave default)
 5. Click **SUBMIT**
+
+> **Auto-discover** reads the API host straight from the Sol-Ark portal at every
+> startup, so the integration survives Sol-Ark moving its API (as it did when it
+> migrated accounts to the `p2` cluster). Leave it on unless you need to pin a
+> specific **API URL**; if discovery ever fails, that field is used as fallback.
 
 ### Step 4: Verify Sensors Work
 

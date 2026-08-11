@@ -4,8 +4,47 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- Username, password and OAuth tokens are redacted from debug/error logs. The
+  login handlers previously logged full response bodies, which contain
+  `access_token` and `refresh_token`. (upstream `d336443`)
+- Diagnostics downloads now redact token fields as well as credentials.
+  (upstream `d336443`)
+
+### ✨ Improvements
+
+- **Auto-discover API URL** — the integration reads `VUE_APP_BASE_API` from the
+  Sol-Ark portal frontend at startup, so a future API host migration is picked
+  up automatically instead of needing a code change. Toggleable during setup and
+  in **Configure**; the manual **API URL** remains as override and as fallback
+  when discovery fails. (upstream `11072e0`, `6ed5b09`)
+- Retired Sol-Ark hosts are rewritten to current defaults on upgrade. This now
+  covers `base_url` (`mysolark.com` → `www.solarkcloud.com`) as well as
+  `api_url`, and additionally handles `ecsprod-api.solarkcloud.com`.
+  (upstream `11072e0`, `6ed5b09`)
+
 ### 🐛 Fixes
 
+- The legacy login fallback used a hardcoded `api.solarkcloud.com` instead of
+  the configured `api_url`, so it would have kept talking to a retired host
+  after the p2 migration. (upstream `d336443`)
+- PV power now includes `minPower` (microinverter / AC-coupled PV) from the
+  energy flow endpoint. (upstream `62d0b49`)
+- Placeholder MPPT volt/current ramps returned by some `dy/store` payloads are
+  no longer summed into PV power as if they were live string data. The MPPT sum
+  is now a true last resort, used only when the flow endpoint reports no PV.
+  (upstream `62d0b49`)
+- Battery SOC only falls back to `curCap`/`batteryCap` when `curCap` is actually
+  populated; a missing `curCap` previously reported a confident 0%.
+  (upstream `62d0b49`)
+- The plant `/realtime` endpoint is used as an energy fallback when the inverter
+  list yields nothing. Unlike upstream, it does **not** override the
+  per-inverter sum: on a probed plant the two agreed on `etoday` (56.7 kWh) but
+  differed by ~22 MWh on `etotal`, because the plant figure counts hardware no
+  longer in the inverter list. Preferring it would inject a one-time step into
+  a `TOTAL_INCREASING` sensor and corrupt energy dashboard statistics.
+  (diverges from upstream `62d0b49`)
 - `energy_today` and `energy_total` now sum production across all inverters in
   the plant instead of reporting only the first inverter in the API response.
   On multi-inverter plants these sensors were previously under-reporting (e.g.
