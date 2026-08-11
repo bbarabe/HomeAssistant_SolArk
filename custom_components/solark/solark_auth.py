@@ -33,6 +33,7 @@ class SolArkAuth:
         self._token: Optional[str] = None
         self._refresh_token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+        self._login_lock = asyncio.Lock()
 
     def get_headers(self, strict: bool = True) -> dict[str, str]:
         headers: dict[str, str] = {
@@ -50,11 +51,24 @@ class SolArkAuth:
             headers["Authorization"] = f"Bearer {self._token}"
         return headers
 
+    def _token_valid(self) -> bool:
+        return bool(
+            self._token
+            and self._token_expiry
+            and datetime.utcnow() < self._token_expiry
+        )
+
     async def ensure_token(self) -> None:
-        if self._token and self._token_expiry and datetime.utcnow() < self._token_expiry:
+        if self._token_valid():
             return
-        _LOGGER.debug("Token missing or expired, logging in again")
-        await self.login()
+        # Two coordinators (data + settings) and service calls share this
+        # auth object; serialize the login so concurrent expiry doesn't fire
+        # duplicate credential requests at the cloud.
+        async with self._login_lock:
+            if self._token_valid():
+                return
+            _LOGGER.debug("Token missing or expired, logging in again")
+            await self.login()
 
     async def _oauth_login(self) -> None:
         url = f"{self.api_url}/oauth/token"
