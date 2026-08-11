@@ -778,50 +778,28 @@ class SolArkCloudAPI:
         """Fetch plant realtime summary (etoday/etotal/pac).
 
         Upstream (62d0b49) *prefers* these values over the inverter list. This
-        fork uses them only as a fallback, because ``etotal`` here is the one
-        SolArk figure that disagrees with every other source.
+        fork uses them only as a fallback.
 
-        Measured on plant 118814, ``etotal`` tracks the per-inverter sum in
-        lockstep with a *fixed* offset. Three samples across ~40 minutes of
-        active production (the counter advanced ~10 kWh between them)::
+        ``etoday`` from this endpoint agrees with the per-inverter sum, but
+        ``etotal`` does not: on the system this was developed against it ran
+        roughly 26% high, tracking the per-inverter sum with a large fixed
+        offset. That offset appears in no other endpoint -- the inverter list,
+        ``/api/v1/plants``, and the plant's own year-by-year PV history from
+        ``/plant/energy/{id}/total`` all agree with each other to within ~1%.
+        Its origin is unknown.
 
-            /realtime etotal   inverter sum   difference
-            104626.5           82323.5        22303.0
-            104634.7           82331.7        22303.0
-            104636.1           82333.1        22303.0
+        Which side is correct was settled with an independent meter rather
+        than by trusting any SolArk figure: module-level Tigo monitoring on
+        the same array agreed with the per-inverter sum to within 1%, and not
+        with ``etotal``. The per-inverter sum is therefore the correct
+        production figure and is what feeds the Energy Dashboard's solar
+        source.
 
-        The offset is constant to 0.1 kWh, so this is the same underlying
-        quantity carrying a legacy constant — not a different metric and not
-        drift. Crucially the offset appears in *no* other endpoint: the
-        inverter list, ``/api/v1/plants``, and the plant's own year-by-year
-        ``/plant/energy/{id}/total`` PV series (82631.0 kWh lifetime) all
-        agree with each other to within ~0.4%. The sibling realtime fields
-        agree too -- ``etoday`` matches the inverter sum exactly and
-        ``emonth`` lands within 1.0 kWh of the history.
-
-        Independent hardware settles which side is right. Module-level Tigo
-        monitoring on the same array reports 83100 kWh lifetime::
-
-            Tigo (independent)        83100      --
-            history PV series         82631      -0.6%
-            inverter list sum (used)  82334      -0.9%
-            /realtime etotal         104637     +25.9%
-
-        The inverter sum reading slightly under Tigo is expected -- Tigo
-        measures DC at the modules, inverter ``etotal`` is AC after conversion
-        losses -- so the per-inverter sum is the correct AC production figure
-        and is what feeds the Energy Dashboard's solar source.
-
-        The origin of the 22303.0 is unknown. An earlier revision of this
-        comment guessed "production from retired hardware"; that is
-        contradicted by the year-by-year PV history, which would have to
-        contain those 22 MWh and does not.
-
-        Note the portal's own overview card displays ``etotal`` (104637.5),
-        so the portal contradicts both its own production chart and the
-        physical meter. Matching the card would mean mirroring a known-bad
-        number, and would inject a one-time ~22 MWh jump into an existing
-        TOTAL_INCREASING sensor. The per-inverter sum stays primary.
+        Note the portal's overview card displays ``etotal``, so the portal can
+        disagree with both its own production chart and the physical meter.
+        Matching that card is not a reason to switch: beyond mirroring a
+        wrong number, changing the source of a TOTAL_INCREASING sensor
+        injects a one-time step that corrupts long-run statistics.
         """
         await self._auth.ensure_token()
         endpoint = f"/api/v1/plant/{self.plant_id}/realtime"

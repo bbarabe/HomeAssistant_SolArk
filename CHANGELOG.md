@@ -46,17 +46,15 @@ All notable changes to this project will be documented in this file.
   (upstream `62d0b49`)
 - The plant `/realtime` endpoint is used as an energy fallback when the inverter
   list yields nothing. Unlike upstream, it does **not** override the
-  per-inverter sum. On the probed plant its `etotal` tracks the per-inverter sum
-  with a *fixed* +22303.0 kWh offset (constant to 0.1 kWh across three samples
-  spanning ~10 kWh of production), and that offset appears in no other
-  endpoint — the inverter list, `/api/v1/plants`, and the plant's own
-  year-by-year PV history all agree with each other to within ~0.4%. Sibling
-  fields are fine: `etoday` matches exactly and `emonth` to within 1.0 kWh.
-  Independent module-level Tigo monitoring on the same array reports 83100 kWh
-  lifetime, confirming ~82.3–82.6 MWh is correct and `/realtime` `etotal` is
-  ~26% too high. Preferring it would inject a one-time ~22 MWh step into a
-  `TOTAL_INCREASING` sensor and corrupt energy dashboard statistics.
-  (diverges from upstream `62d0b49`)
+  per-inverter sum. Its `etoday` agrees with that sum, but its `etotal` ran
+  ~26% high on the system this was developed against, carrying a large fixed
+  offset that appears in no other endpoint — the inverter list,
+  `/api/v1/plants`, and the plant's own year-by-year PV history all agree with
+  each other to within ~1%. Which side is correct was settled with an
+  independent meter: module-level Tigo monitoring on the same array agreed with
+  the per-inverter sum, not with `etotal`. Preferring `etotal` would mirror a
+  wrong number and inject a one-time step into a `TOTAL_INCREASING` sensor,
+  corrupting energy dashboard statistics. (diverges from upstream `62d0b49`)
 - `energy_today` and `energy_total` now sum production across all inverters in
   the plant instead of reporting only the first inverter in the API response.
   On multi-inverter plants these sensors were previously under-reporting (e.g.
