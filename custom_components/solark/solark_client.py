@@ -772,6 +772,16 @@ class SolArkCloudAPI:
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.warning("Unable to merge realtime data into live data: %s", exc)
 
+        # Partial results degrade gracefully (retention cache, unknown states),
+        # but if every sub-fetch failed there is nothing to report: raise so
+        # the coordinator marks entities unavailable instead of publishing an
+        # all-defaults payload.
+        if not combined:
+            raise SolArkCloudAPIError(
+                "SolArk cloud returned no data: flow, workdata, inverter and "
+                "realtime fetches all failed"
+            )
+
         return combined
 
     async def _get_realtime_data(self) -> Dict[str, Any]:
@@ -979,16 +989,17 @@ class SolArkCloudAPI:
                 sensors["battery_power"] = cur_volt * charge_current
 
         # ----- Battery charge/discharge split -----
-        battery_power = self._safe_float(sensors.get("battery_power"))
-        if battery_power > 0.0:
-            sensors["battery_discharge_power"] = battery_power
-            sensors["battery_charge_power"] = 0.0
-        elif battery_power < 0.0:
-            sensors["battery_discharge_power"] = 0.0
-            sensors["battery_charge_power"] = abs(battery_power)
-        else:
-            sensors["battery_discharge_power"] = 0.0
-            sensors["battery_charge_power"] = 0.0
+        if "battery_power" in sensors:
+            battery_power = self._safe_float(sensors.get("battery_power"))
+            if battery_power > 0.0:
+                sensors["battery_discharge_power"] = battery_power
+                sensors["battery_charge_power"] = 0.0
+            elif battery_power < 0.0:
+                sensors["battery_discharge_power"] = 0.0
+                sensors["battery_charge_power"] = abs(battery_power)
+            else:
+                sensors["battery_discharge_power"] = 0.0
+                sensors["battery_charge_power"] = 0.0
 
         # ----- Grid / Meter power (flow) -----
         if "gridOrMeterPower" in data:
@@ -1071,15 +1082,30 @@ class SolArkCloudAPI:
         if gen_on is not None:
             sensors["generator_status"] = "Running" if gen_on else "Off"
 
-        sensors.setdefault("pv_power", 0.0)
-        sensors.setdefault("battery_power", 0.0)
-        sensors.setdefault("grid_power", 0.0)
-        sensors.setdefault("load_power", 0.0)
-        sensors.setdefault("grid_import_power", 0.0)
-        sensors.setdefault("grid_export_power", 0.0)
-        sensors.setdefault("battery_soc", 0.0)
-        sensors.setdefault("battery_charge_power", 0.0)
-        sensors.setdefault("battery_discharge_power", 0.0)
+        # A fetched flow payload legitimises zero defaults: a key missing from
+        # it means "zero right now". Without any flow data, leave the power
+        # keys absent so those entities report unknown instead of recording
+        # fake zeros into long-term statistics.
+        has_flow = any(
+            key in data
+            for key in (
+                "pvPower",
+                "battPower",
+                "gridOrMeterPower",
+                "loadOrEpsPower",
+                "soc",
+            )
+        )
+        if has_flow:
+            sensors.setdefault("pv_power", 0.0)
+            sensors.setdefault("battery_power", 0.0)
+            sensors.setdefault("grid_power", 0.0)
+            sensors.setdefault("load_power", 0.0)
+            sensors.setdefault("grid_import_power", 0.0)
+            sensors.setdefault("grid_export_power", 0.0)
+            sensors.setdefault("battery_soc", 0.0)
+            sensors.setdefault("battery_charge_power", 0.0)
+            sensors.setdefault("battery_discharge_power", 0.0)
 
         # ----- Retain last-known values through brief data gaps -----
         now = datetime.utcnow()
