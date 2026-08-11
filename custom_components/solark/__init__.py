@@ -168,7 +168,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         session=session,
         timezone=hass.config.time_zone,
     )
-    await api.prime_inverters_cache()
+    # Warm the inverter-list cache. Best effort only: the cache is lazy and
+    # refetches on next use, so a cloud hiccup during HA startup must not
+    # abort setup (an unhandled error here would leave the entry failed with
+    # no retry).
+    try:
+        await api.prime_inverters_cache()
+    except SolArkCloudAPIError as err:
+        _LOGGER.warning(
+            "Could not prefetch the inverter list (will retry on demand): %s",
+            err,
+        )
 
     async def async_update_data() -> dict[str, Any]:
         """Fetch and parse data from SolArk."""
@@ -208,7 +218,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await coordinator.async_config_entry_first_refresh()
-    await settings_coordinator.async_config_entry_first_refresh()
+    # Settings are optional: some accounts can read telemetry but not inverter
+    # settings (limited/installer logins), and some plants report no master
+    # inverter. Failing here would take down every sensor, so refresh without
+    # raising — the config sensors stay unavailable until a poll succeeds.
+    await settings_coordinator.async_refresh()
+    if not settings_coordinator.last_update_success:
+        _LOGGER.warning(
+            "Inverter settings are unavailable; configuration sensors will "
+            "remain unavailable until a settings poll succeeds"
+        )
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
