@@ -135,10 +135,13 @@ class SolArkAuth:
         )
 
     async def _legacy_login(self) -> None:
-        url = "https://api.solarkcloud.com/rest/account/login"
+        # Fallback path on the same API host the portal uses today.
+        url = f"{self.api_url}/rest/account/login"
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "Origin": self.base_url,
+            "Referer": f"{self.base_url}/",
         }
         payload = {"username": self.username, "password": self.password}
 
