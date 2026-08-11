@@ -28,8 +28,8 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 ### Step 1: Install via HACS
 
 1. Open Home Assistant
-2. Go to **HACS** → **Integrations**
-3. Click **⋮** → **Custom repositories**
+2. Go to **HACS** â†’ **Integrations**
+3. Click **â‹®** â†’ **Custom repositories**
 4. Add: `https://github.com/HammondAutomationHub/HomeAssistant_SolArk`
 5. Category: **Integration**
 6. Click **Download** on "SolArk Cloud"
@@ -40,12 +40,12 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 1. Go to [solarkcloud.com](https://www.solarkcloud.com) (`mysolark.com` still redirects here)
 2. Log in with your Sol-Ark account
 3. Click on your system/plant
-4. Look at the URL: `https://www.solarkcloud.com/plant/12345`
+4. Look at the URL: `https://www.solarkcloud.com/plants/overview/12345/...`
 5. Your Plant ID is the number: `12345`
 
 ### Step 3: Add Integration
 
-1. Go to **Settings** → **Devices & Services**
+1. Go to **Settings** â†’ **Devices & Services**
 2. Click **+ ADD INTEGRATION**
 3. Search: **SolArk Cloud**
 4. Enter:
@@ -64,7 +64,7 @@ After installation, you'll have 18 sensors monitoring your Sol-Ark system:
 
 ### Step 4: Verify Sensors Work
 
-1. Go to **Developer Tools** → **States**
+1. Go to **Developer Tools** â†’ **States**
 2. Search for: `solark`
 3. You should see 18 sensors with live data
 4. If they show "unavailable", wait 30 seconds for first update
@@ -101,10 +101,10 @@ python -m solark_cli --secrets solark_secrets.json --combined --parsed
 **Easy Way:**
 1. Download `dashboards/solark_flow.yaml` from the GitHub repo
 2. Copy all the contents
-3. Go to **Settings** → **Dashboards** → **+ ADD DASHBOARD**
+3. Go to **Settings** â†’ **Dashboards** â†’ **+ ADD DASHBOARD**
 4. Name it "SolArk"
-5. After creation, click **⋮** → **Edit Dashboard**
-6. Click **⋮** → **Raw configuration editor**
+5. After creation, click **â‹®** â†’ **Edit Dashboard**
+6. Click **â‹®** â†’ **Raw configuration editor**
 7. Delete everything and paste the copied YAML
 8. Click **SAVE**
 
@@ -118,13 +118,13 @@ Then restart HA and refresh your browser (Ctrl+Shift+R).
 
 ### "Authentication Failed"
 - Double-check your username and password
-- Try logging into mysolark.com with same credentials
+- Try logging into solarkcloud.com with same credentials
 - Make sure your Plant ID is correct
 
 ### "No sensors appearing"
 - Restart Home Assistant completely
 - Wait 30-60 seconds after restart
-- Check **Settings** → **System** → **Logs** for errors
+- Check **Settings** â†’ **System** â†’ **Logs** for errors
 
 ### "Grid power entity ID looks wrong"
 - The net grid power entity should be `sensor.solark_grid_power`.
@@ -138,7 +138,7 @@ Then restart HA and refresh your browser (Ctrl+Shift+R).
 - Clear browser cache (Ctrl+Shift+R)
 
 ### "Sensors show 'unavailable'"
-- Check if mysolark.com is working
+- Check if solarkcloud.com is working
 - Increase Scan Interval to 60 seconds
 - Check logs for API errors
 - Try removing and re-adding the integration
@@ -159,7 +159,8 @@ If this works, the issue is with the custom cards, not the integration.
 ## Getting Help
 
 - **GitHub Issues:** Report bugs at [GitHub Issues](https://github.com/HammondAutomationHub/HomeAssistant_SolArk/issues)
-- **Logs:** Check Home Assistant logs for `custom_components.solark` details
+- **Logs:** Check **Settings → System → Logs** for `custom_components.solark`
+  details (credentials and tokens are redacted)
 - **Community:** Ask at [Home Assistant Forums](https://community.home-assistant.io/)
 
 ## Next Steps
@@ -171,4 +172,4 @@ Once working, you can:
 - Build custom dashboards with your data
 - Compare solar production vs consumption
 
-Enjoy your Sol-Ark monitoring! 🌞🔋
+Enjoy your Sol-Ark monitoring! ðŸŒžðŸ”‹

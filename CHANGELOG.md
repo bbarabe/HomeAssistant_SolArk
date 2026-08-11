@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+> **Note on version numbering.** This fork's 5.1.x/5.2.x releases and upstream's
+> 5.0.1/5.0.2 were developed in parallel, so the numbers below are not in a
+> single chronological order. Upstream 5.0.1 (2026-08-02) and 5.0.2 (2026-08-03)
+> came *after* this fork's 5.2.0 (2026-01-30); their contents were integrated
+> into this fork's Unreleased section, which credits the originating commits.
+
 ## [Unreleased]
 
 ### 🔒 Security
@@ -120,6 +126,32 @@ All notable changes to this project will be documented in this file.
 
 - Updated Energy dashboard setup to use built-in energy sensors.
 - Updated sensor lists and troubleshooting guidance.
+
+## [5.0.2] - 2026-08-03
+
+### Security
+
+- Username, password, and OAuth tokens are redacted from debug/error logs.
+- Removed the always-on `solark_debug.log` file handler (use HA logger instead).
+
+### Fixed
+
+- **PV power** now includes `minPower` (microinverter / AC-coupled PV) from the energy flow endpoint.
+- **Battery power** is signed using flow direction flags (`batTo` = discharge +, `toBat` = charge −).
+- **Grid import/export** fall back to `gridOrMeterPower` + `gridTo`/`toGrid` when external meter phases are unused.
+- **Energy total/today** prefer plant `/realtime` values over inverter-list totals.
+- Guard against placeholder `dy/store` MPPT volt/current ramps being treated as live PV.
+
+## [5.0.1] - 2026-08-02
+
+### Fixed
+
+- **SolArk Cloud API host migration** - The portal moved to `www.solarkcloud.com` with API base `https://p2.api.solarkcloud.com`. Defaults and existing installs that still used `mysolark.com` / `ecsprod-api-new.solarkcloud.com` are updated automatically on reload.
+- Energy today/total now also falls back to the plant `/realtime` endpoint when inverter summary values are missing.
+
+### Added
+
+- **Auto-discover API URL** - Reads `VUE_APP_BASE_API` from the SolArk portal frontend and stores the resolved API URL on the config entry. Toggleable in setup and Configure options; manual API URL remains as override/fallback.
 
 ## [5.0.0] - 2024-11-21
 
