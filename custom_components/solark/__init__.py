@@ -42,18 +42,21 @@ _FETCH_COMPONENT_LABELS: dict[str, str] = {
 }
 
 
-def _update_fetch_health_issues(hass: HomeAssistant, api: Any) -> None:
+def _update_fetch_health_issues(
+    hass: HomeAssistant, entry_id: str, api: Any
+) -> None:
     """Create or clear repair issues based on per-sub-fetch health.
 
     Raises one repair issue per component that has been failing longer than
     FETCH_FAILURE_THRESHOLD_SECONDS and clears it as soon as the component
-    recovers. Issue IDs are stable (one per component) so there is never more
-    than one issue per component, and they auto-resolve on recovery.
+    recovers. Issue IDs are stable (one per entry and component) so there is
+    never more than one issue per component, they auto-resolve on recovery,
+    and one entry's recovery cannot clear another entry's issue.
     """
     from homeassistant.helpers import issue_registry as ir
 
     for component, failing_seconds in api.get_fetch_health().items():
-        issue_id = f"fetch_failure_{component}"
+        issue_id = f"fetch_failure_{entry_id}_{component}"
         if failing_seconds >= FETCH_FAILURE_THRESHOLD_SECONDS:
             ir.async_create_issue(
                 hass,
@@ -191,7 +194,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # get_plant_data swallows per-sub-fetch errors (and raises only
             # when every fetch failed), so evaluate health on both outcomes
             # to raise/clear repair issues for prolonged failures.
-            _update_fetch_health_issues(hass, api)
+            _update_fetch_health_issues(hass, entry.entry_id, api)
         return parsed
 
     async def async_update_settings() -> dict[str, Any]:
@@ -321,12 +324,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
-        # Clear any outstanding health repair issues for this integration.
+        stored = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if stored:
+            task = stored.get("settings_refresh_task")
+            if task and not task.done():
+                task.cancel()
+        # Clear any outstanding health repair issues for this entry.
         from homeassistant.helpers import issue_registry as ir
 
         for component in _FETCH_COMPONENT_LABELS:
-            ir.async_delete_issue(hass, DOMAIN, f"fetch_failure_{component}")
+            ir.async_delete_issue(
+                hass, DOMAIN, f"fetch_failure_{entry.entry_id}_{component}"
+            )
         # Last entry gone: the service has nothing left to act on.
         if not hass.data[DOMAIN] and hass.services.has_service(
             DOMAIN, "configure_inverter"
