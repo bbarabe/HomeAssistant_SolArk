@@ -177,9 +177,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             parsed = api.parse_plant_data(raw)
         except SolArkCloudAPIError as err:
             raise UpdateFailed(str(err)) from err
-        # get_plant_data swallows per-sub-fetch errors, so evaluate health
-        # here every cycle to raise/clear repair issues for prolonged failures.
-        _update_fetch_health_issues(hass, api)
+        finally:
+            # get_plant_data swallows per-sub-fetch errors (and raises only
+            # when every fetch failed), so evaluate health on both outcomes
+            # to raise/clear repair issues for prolonged failures.
+            _update_fetch_health_issues(hass, api)
         return parsed
 
     async def async_update_settings() -> dict[str, Any]:
