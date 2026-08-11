@@ -48,7 +48,7 @@ A Home Assistant custom integration for Sol-Ark inverter systems that connects t
 
 ## 📋 Requirements
 
-- Home Assistant 2023.5.0 or newer
+- Home Assistant 2024.3.0 or newer
 - Sol-Ark inverter (12K, 15K, 8K, 5K models)
 - Active Sol-Ark Cloud account
 - Your Plant ID from Sol-Ark portal
@@ -364,9 +364,13 @@ issue per data source.
   (credentials/tokens are redacted in SolArk debug output)
 
 ### Grid Power Entity ID Looks Wrong
-- The net grid power entity should be `sensor.solark_grid_power`.
-- If you see `sensor.solark_grid_power_net` after reinstalling, reload the
-  integration or restart Home Assistant so the entity registry rename runs.
+- Fresh installs create the net grid power entity as
+  `sensor.solark_grid_power`.
+- Installs upgraded from older versions may have `sensor.solark_grid_power_net`
+  (or a custom id). The integration keeps whatever id the entity already has so
+  existing automations and dashboards are never broken; rename it manually in
+  **Settings** → **Devices & Services** → **Entities** if you prefer the new
+  form.
 
 ### Dashboard Shows Blank
 1. Verify sensors exist: **Developer Tools** → **States**
@@ -446,4 +450,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Note:** Not officially affiliated with Sol-Ark. Community-developed integration.
 
-**Version:** 5.3.0 | **Supports:** Sol-Ark 5K/8K/12K/15K | **HA:** 2023.5.0+
+**Version:** 5.3.0 | **Supports:** Sol-Ark 5K/8K/12K/15K | **HA:** 2024.3.0+
