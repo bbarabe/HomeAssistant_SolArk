@@ -10,7 +10,7 @@ import aiohttp
 
 from .solark_auth import SolArkAuth
 from .solark_errors import SolArkCloudAPIError
-from .solark_logging import get_logger
+from .solark_logging import _redact_secret_text, _redact_secrets, get_logger
 
 _LOGGER = get_logger(__name__)
 
@@ -143,8 +143,8 @@ class SolArkCloudAPI:
             "Requesting %s %s with params=%s json=%s",
             method,
             url,
-            params,
-            json_body,
+            _redact_secrets(params),
+            _redact_secrets(json_body),
         )
 
         try:
@@ -162,20 +162,22 @@ class SolArkCloudAPI:
                     method,
                     url,
                     resp.status,
-                    text[:1000],
+                    _redact_secret_text(text[:1000]),
                 )
                 try:
                     resp.raise_for_status()
                 except aiohttp.ClientResponseError as exc:
                     raise SolArkCloudAPIError(
-                        f"HTTP {resp.status} for {endpoint}: {text[:500]}"
+                        f"HTTP {resp.status} for {endpoint}: "
+                        f"{_redact_secret_text(text[:500])}"
                     ) from exc
 
                 try:
                     result = await resp.json()
                 except Exception as exc:  # noqa: BLE001
                     raise SolArkCloudAPIError(
-                        f"Invalid JSON response from {endpoint}: {text[:200]}"
+                        f"Invalid JSON response from {endpoint}: "
+                        f"{_redact_secret_text(text[:200])}"
                     ) from exc
 
         except asyncio.TimeoutError as exc:  # noqa: BLE001
@@ -623,20 +625,22 @@ class SolArkCloudAPI:
                 _LOGGER.debug(
                     "Workdata response HTTP %s, body: %s",
                     resp.status,
-                    text[:1000],
+                    _redact_secret_text(text[:1000]),
                 )
                 try:
                     resp.raise_for_status()
                 except aiohttp.ClientResponseError as exc:
                     raise SolArkCloudAPIError(
-                        f"HTTP {resp.status} for workdata: {text[:500]}"
+                        f"HTTP {resp.status} for workdata: "
+                        f"{_redact_secret_text(text[:500])}"
                     ) from exc
 
                 try:
                     result = await resp.json()
                 except Exception as exc:  # noqa: BLE001
                     raise SolArkCloudAPIError(
-                        f"Invalid JSON response from workdata: {text[:200]}"
+                        f"Invalid JSON response from workdata: "
+                        f"{_redact_secret_text(text[:200])}"
                     ) from exc
 
         except asyncio.TimeoutError as exc:
@@ -813,7 +817,9 @@ class SolArkCloudAPI:
             await self.get_plant_data()
             return True
         except SolArkCloudAPIError as exc:
-            _LOGGER.error("SolArk test_connection failed: %s", exc)
+            _LOGGER.error(
+                "SolArk test_connection failed: %s", _redact_secret_text(str(exc))
+            )
             return False
 
     # ------------------------------------------------------------------
