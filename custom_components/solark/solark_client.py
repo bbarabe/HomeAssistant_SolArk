@@ -778,14 +778,35 @@ class SolArkCloudAPI:
         """Fetch plant realtime summary (etoday/etotal/pac).
 
         Upstream (62d0b49) *prefers* these values over the inverter list. This
-        fork uses them only as a fallback, because the two disagree on
-        lifetime production: measured on plant 118814 the plant figure counts
-        production from hardware no longer in the inverter list (etotal
-        104626.5 kWh vs 82323.5 kWh summed across the two live inverters,
-        while etoday matched exactly at 56.7 kWh). Preferring the plant value
-        would inject a one-time ~22 MWh jump into an existing
-        TOTAL_INCREASING sensor and corrupt the energy dashboard's
-        statistics.
+        fork uses them only as a fallback, because ``etotal`` here is the one
+        SolArk figure that disagrees with every other source.
+
+        Measured on plant 118814, ``etotal`` tracks the per-inverter sum in
+        lockstep with a *fixed* offset. Three samples across ~40 minutes of
+        active production (the counter advanced ~10 kWh between them)::
+
+            /realtime etotal   inverter sum   difference
+            104626.5           82323.5        22303.0
+            104634.7           82331.7        22303.0
+            104636.1           82333.1        22303.0
+
+        The offset is constant to 0.1 kWh, so this is the same underlying
+        quantity carrying a legacy constant — not a different metric and not
+        drift. Crucially the offset appears in *no* other endpoint: the
+        inverter list, ``/api/v1/plants``, and the plant's own year-by-year
+        ``/plant/energy/{id}/total`` PV series (82631.0 kWh lifetime) all
+        agree with each other to within ~0.4%. The sibling realtime fields
+        agree too -- ``etoday`` matches the inverter sum exactly and
+        ``emonth`` lands within 1.0 kWh of the history.
+
+        Its origin is unknown. An earlier revision of this comment guessed
+        "production from retired hardware"; that is contradicted by the
+        year-by-year PV history, which would have to contain those 22 MWh and
+        does not.
+
+        Preferring ``etotal`` would inject a one-time ~22 MWh jump into an
+        existing TOTAL_INCREASING sensor and corrupt the energy dashboard's
+        long-run statistics, so the per-inverter sum stays primary.
         """
         await self._auth.ensure_token()
         endpoint = f"/api/v1/plant/{self.plant_id}/realtime"

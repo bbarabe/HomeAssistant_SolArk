@@ -40,10 +40,14 @@ All notable changes to this project will be documented in this file.
   (upstream `62d0b49`)
 - The plant `/realtime` endpoint is used as an energy fallback when the inverter
   list yields nothing. Unlike upstream, it does **not** override the
-  per-inverter sum: on a probed plant the two agreed on `etoday` (56.7 kWh) but
-  differed by ~22 MWh on `etotal`, because the plant figure counts hardware no
-  longer in the inverter list. Preferring it would inject a one-time step into
-  a `TOTAL_INCREASING` sensor and corrupt energy dashboard statistics.
+  per-inverter sum. On the probed plant its `etotal` tracks the per-inverter sum
+  with a *fixed* +22303.0 kWh offset (constant to 0.1 kWh across three samples
+  spanning ~10 kWh of production), and that offset appears in no other
+  endpoint — the inverter list, `/api/v1/plants`, and the plant's own
+  year-by-year PV history all agree with each other to within ~0.4%. Sibling
+  fields are fine: `etoday` matches exactly and `emonth` to within 1.0 kWh.
+  Preferring `etotal` would inject a one-time ~22 MWh step into a
+  `TOTAL_INCREASING` sensor and corrupt energy dashboard statistics.
   (diverges from upstream `62d0b49`)
 - `energy_today` and `energy_total` now sum production across all inverters in
   the plant instead of reporting only the first inverter in the API response.
