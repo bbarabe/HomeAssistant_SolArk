@@ -253,9 +253,12 @@ def _coerce_bool(value: Any) -> bool:
 
 CONFIG_SENSOR_DESCRIPTIONS: list[SolArkConfigSensorDescription] = [
     # Power limits
+    # NOTE: the api_key assignments below look crossed but are correct; the
+    # cloud field names are misleading. See SIMPLE_PARAM_MAP in services.py
+    # for the empirical verification.
     SolArkConfigSensorDescription(
         key="config_max_solar_power",
-        api_key="pvMaxLimit",
+        api_key="solarMaxSellPower",
         name="Max Solar Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,
@@ -269,7 +272,7 @@ CONFIG_SENSOR_DESCRIPTIONS: list[SolArkConfigSensorDescription] = [
     ),
     SolArkConfigSensorDescription(
         key="config_max_sell_power",
-        api_key="solarMaxSellPower",
+        api_key="pvMaxLimit",
         name="Max Sell Power",
         native_unit_of_measurement="W",
         device_class=SensorDeviceClass.POWER,

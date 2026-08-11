@@ -42,12 +42,13 @@ def slot_mode_from_api(time_on: bool, gen_on: bool) -> str:
 
 # Simple parameter to API key mapping (direct 1:1)
 SIMPLE_PARAM_MAP = {
-    # Power limits. The API field names are literal: pvMaxLimit caps solar
-    # input ("Max Solar Power" on the portal), solarMaxSellPower caps grid
-    # sell ("Max Sell Power").
-    "max_solar_power": "pvMaxLimit",
+    # Power limits. The API field names are MISLEADING — do not "fix" this
+    # mapping to read literally. Verified empirically 2026-08-11: changing
+    # "Max Sell Power" on the SolArk portal (value also confirmed on the
+    # inverter LCD) changed pvMaxLimit, not solarMaxSellPower.
+    "max_solar_power": "solarMaxSellPower",
     "zero_export_power": "zeroExportPower",
-    "max_sell_power": "solarMaxSellPower",
+    "max_sell_power": "pvMaxLimit",
     # Boolean toggles
     "solar_sell": "solarSell",
     "time_of_use": "peakAndVallery",
