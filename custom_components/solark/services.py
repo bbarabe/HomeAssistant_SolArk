@@ -42,10 +42,12 @@ def slot_mode_from_api(time_on: bool, gen_on: bool) -> str:
 
 # Simple parameter to API key mapping (direct 1:1)
 SIMPLE_PARAM_MAP = {
-    # Power limits
-    "max_solar_power": "solarMaxSellPower",
+    # Power limits. The API field names are literal: pvMaxLimit caps solar
+    # input ("Max Solar Power" on the portal), solarMaxSellPower caps grid
+    # sell ("Max Sell Power").
+    "max_solar_power": "pvMaxLimit",
     "zero_export_power": "zeroExportPower",
-    "max_sell_power": "pvMaxLimit",
+    "max_sell_power": "solarMaxSellPower",
     # Boolean toggles
     "solar_sell": "solarSell",
     "time_of_use": "peakAndVallery",
