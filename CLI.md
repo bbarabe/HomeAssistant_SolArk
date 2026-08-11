@@ -141,6 +141,6 @@ python -m solark_cli \
 
 - **Missing dependency**: Install `aiohttp` in your environment.
 - **Missing required values**: Provide required flags or a secrets file.
-- **API error**: Verify credentials at mysolark.com and confirm your Plant ID.
+- **API error**: Verify credentials at [solarkcloud.com](https://www.solarkcloud.com) and confirm your Plant ID.
 - **No inverters found**: Ensure the Plant ID is correct and the account has
   access to at least one inverter.
